@@ -18,9 +18,17 @@ class SmalrubyKoshienSchema < GraphQL::Schema
 
   # Union and Interface Resolution
   def self.resolve_type(abstract_type, obj, ctx)
-    # TODO: Implement this method
-    # to return the correct GraphQL object type for `obj`
-    raise(GraphQL::RequiredImplementationMissingError)
+    # Map Rails models to their GraphQL types
+    case obj
+    when PlayerAi
+      Types::PlayerAiType
+    when GameMap
+      Types::GameMapType
+    when Game
+      Types::GameType
+    else
+      raise(GraphQL::RequiredImplementationMissingError, "Unexpected object: #{obj.class}")
+    end
   end
 
   # Limit the size of incoming queries:

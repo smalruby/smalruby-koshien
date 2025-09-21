@@ -11,7 +11,9 @@ FactoryBot.define do
     end
 
     trait :expired do
-      expires_at { 1.day.ago }
+      after(:create) do |player_ai|
+        player_ai.update_column(:expires_at, 1.day.ago)
+      end
     end
 
     trait :with_ruby_code do
