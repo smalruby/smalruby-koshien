@@ -6,24 +6,24 @@ RSpec.describe Game, type: :model do
   let(:player_ai_2) { PlayerAi.create!(name: "Test AI 2", code: "test code", author: "test") }
   let(:game) { Game.new(first_player_ai: player_ai_1, second_player_ai: player_ai_2, game_map: game_map, battle_url: "https://test.example.com/battle/1") }
 
-  describe "validations" do
-    it "is valid with valid attributes" do
+  describe "バリデーション" do
+    it "有効な属性で有効である" do
       expect(game).to be_valid
     end
 
-    it "requires first_player_ai" do
+    it "first_player_aiが必須である" do
       game.first_player_ai = nil
       expect(game).not_to be_valid
       expect(game.errors[:first_player_ai]).to include("must exist")
     end
 
-    it "requires second_player_ai" do
+    it "second_player_aiが必須である" do
       game.second_player_ai = nil
       expect(game).not_to be_valid
       expect(game.errors[:second_player_ai]).to include("must exist")
     end
 
-    it "requires game_map" do
+    it "game_mapが必須である" do
       game.game_map = nil
       expect(game).not_to be_valid
       expect(game.errors[:game_map]).to include("must exist")
