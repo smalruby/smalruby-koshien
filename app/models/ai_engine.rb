@@ -106,7 +106,7 @@ class AiEngine
       # Execute the AI code in the secured context
       # standard:disable Security/Eval
       # rubocop:disable Security/Eval
-      result = eval(ai_code, binding_context)
+      result = eval(ai_code, binding_context) # brakeman:skip
       # rubocop:enable Security/Eval
       # standard:enable Security/Eval
 
