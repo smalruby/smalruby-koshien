@@ -27,7 +27,7 @@ end
 # プリセットマップの作成（2024サンプルマップから）
 def load_csv_map(file_path)
   File.readlines(file_path).map do |line|
-    line.strip.split(',').map(&:to_i)
+    line.strip.split(",").map(&:to_i)
   end
 end
 
@@ -46,7 +46,7 @@ sample_maps_base_path = "/Users/kouji/work/smalruby/smalruby3-develop/tmp/vendor
 preset_maps = []
 
 (1..10).each do |i|
-  map_dir = "#{sample_maps_base_path}/map_#{format('%02d', i)}"
+  map_dir = "#{sample_maps_base_path}/map_#{format("%02d", i)}"
 
   if Dir.exist?(map_dir)
     begin
