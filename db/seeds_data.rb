@@ -2,22 +2,17 @@
 preset_ais = [
   {
     name: "ゴール優先AI",
-    code: "# ゴールを最優先で目指すAI\nloop do\n  move_to_goal\nend",
+    code: File.read(Rails.root.join("db/seeds_data/player_ai_goal.rb")),
     author: "system"
   },
   {
     name: "アイテム優先AI",
-    code: "# アイテム収集を最優先にするAI\nloop do\n  collect_items\nend",
+    code: File.read(Rails.root.join("db/seeds_data/player_ai_item.rb")),
     author: "system"
   },
   {
     name: "前半アイテム後半ゴールAI",
-    code: "# 前半はアイテム、後半はゴールを目指すAI\nif turn < 25\n  collect_items\nelse\n  move_to_goal\nend",
-    author: "system"
-  },
-  {
-    name: "サンプルAI",
-    code: File.read("/Users/kouji/work/smalruby/smalruby3-develop/tmp/vendor/smalruby-koshien/src/samples/smpl31/player_AI.rb"),
+    code: File.read(Rails.root.join("db/seeds_data/player_ai_item_goal.rb")),
     author: "system"
   }
 ]
