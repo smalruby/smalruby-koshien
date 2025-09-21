@@ -1,7 +1,9 @@
 class Game < ApplicationRecord
+  # アソシエーション
   belongs_to :first_player_ai, class_name: "PlayerAi"
   belongs_to :second_player_ai, class_name: "PlayerAi"
   belongs_to :game_map
+  has_many :game_rounds, dependent: :destroy
 
   enum :status, {
     waiting_for_players: 0,

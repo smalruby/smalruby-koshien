@@ -1,5 +1,10 @@
 class PlayerAi < ApplicationRecord
-  validates :name, presence: true, length: {maximum: 100}
+  # アソシエーション
+  has_many :first_player_games, class_name: "Game", foreign_key: "first_player_ai_id", dependent: :nullify
+  has_many :second_player_games, class_name: "Game", foreign_key: "second_player_ai_id", dependent: :nullify
+
+  # バリデーション
+  validates :name, presence: true, length: {maximum: 100}, uniqueness: true
   validates :code, presence: true, length: {maximum: 10000}
   validates :author, length: {maximum: 100}
 

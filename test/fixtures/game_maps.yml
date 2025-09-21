@@ -1,17 +1,15 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  name: MyString
-  description: MyText
-  thumbnail_url: MyString
-  map_data: MyText
-  map_height: MyText
-  goal_position: MyText
+  name: "Test Map 1"
+  description: "Test map for development"
+  map_data: "[[0,0,0],[0,1,0],[0,0,0]]"
+  map_height: "[[0,0,0],[0,0,0],[0,0,0]]"
+  goal_position: '{"x": 2, "y": 2}'
 
 two:
-  name: MyString
-  description: MyText
-  thumbnail_url: MyString
-  map_data: MyText
-  map_height: MyText
-  goal_position: MyText
+  name: "Test Map 2"
+  description: "Another test map"
+  map_data: "[[1,1,1],[1,0,1],[1,1,1]]"
+  map_height: "[[0,0,0],[0,0,0],[0,0,0]]"
+  goal_position: '{"x": 1, "y": 1}'

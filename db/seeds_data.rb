@@ -29,7 +29,6 @@ preset_maps = (1..10).map do |i|
   {
     name: "map#{i}",
     description: "プリセットマップ#{i}",
-    thumbnail_url: "https://koshien.smalruby.app/maps/map#{i}_thumb.png",
     map_data: Array.new(10) { Array.new(10) { rand(3) } }, # 10x10のランダムマップ
     map_height: Array.new(10) { Array.new(10) { 0 } },     # 高さ情報
     goal_position: {x: 9, y: 9}                          # ゴール位置
@@ -39,7 +38,6 @@ end
 preset_maps.each do |map_data|
   GameMap.find_or_create_by!(name: map_data[:name]) do |map|
     map.description = map_data[:description]
-    map.thumbnail_url = map_data[:thumbnail_url]
     map.map_data = map_data[:map_data]
     map.map_height = map_data[:map_height]
     map.goal_position = map_data[:goal_position]
