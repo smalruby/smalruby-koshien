@@ -1,5 +1,6 @@
 class GameEvent < ApplicationRecord
   belongs_to :game_turn
+  belongs_to :player, optional: true
 
   validates :event_type, presence: true
   validates :event_data, presence: true
