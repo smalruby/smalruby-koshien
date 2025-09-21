@@ -5,6 +5,9 @@ FactoryBot.define do
     position_y { 1 }
     hp { 100 }
     attack_power { 10 }
+    state { :normal_state }
+    enemy_kill { :no_kill }
+    killed { false }
 
     trait :weak do
       hp { 1 }
@@ -18,6 +21,20 @@ FactoryBot.define do
 
     trait :defeated do
       hp { 0 }
+    end
+
+    trait :angry do
+      state { :angry }
+    end
+
+    trait :kill_mode do
+      state { :kill }
+      enemy_kill { :player1_kill }
+    end
+
+    trait :killed do
+      killed { true }
+      state { :done }
     end
 
     trait :at_position do

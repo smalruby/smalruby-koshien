@@ -1,4 +1,6 @@
 class Player < ApplicationRecord
+  include GameConstants
+
   belongs_to :game_round
   belongs_to :player_ai
 
@@ -6,15 +8,18 @@ class Player < ApplicationRecord
   validates :position_y, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :score, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :dynamite_left, presence: true, numericality: {greater_than_or_equal_to: 0}
+  validates :bomb_left, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :character_level, presence: true, numericality: {greater_than_or_equal_to: 1}
+  validates :walk_bonus_counter, presence: true, numericality: {greater_than_or_equal_to: 0}
 
   enum :status, {
-    active: 0,
-    inactive: 1,
-    defeated: 2
+    playing: 0,
+    completed: 1,
+    timeout: 2,
+    timeup: 3
   }
 
-  scope :active_players, -> { where(status: :active) }
+  scope :active_players, -> { where(status: :playing) }
   scope :by_position, ->(x, y) { where(position_x: x, position_y: y) }
 
   def position
@@ -61,5 +66,55 @@ class Player < ApplicationRecord
     self.walk_bonus = true
     self.score += 1 # 歩行ボーナス
     true
+  end
+
+  def can_use_bomb?
+    bomb_left > 0
+  end
+
+  def use_bomb
+    return false unless can_use_bomb?
+
+    self.bomb_left -= 1
+    true
+  end
+
+  def calc_character_level(total_score = nil)
+    score_to_calc = total_score || score
+    [(score_to_calc - 1).div(20), 0].max.clamp(0, 8)
+  end
+
+  def update_character_level
+    return unless playing?
+
+    new_level = calc_character_level
+    self.character_level = new_level
+  end
+
+  def get_positive_item(item_idx)
+    return unless acquired_positive_items.is_a?(Array) && item_idx.between?(1, 5)
+
+    current_items = acquired_positive_items.dup
+    current_items[item_idx] += 1
+    self.acquired_positive_items = current_items
+  end
+
+  def calc_walk_bonus_with_counter
+    return false unless has_moved?
+
+    self.walk_bonus_counter += 1
+
+    if walk_bonus_counter >= WALK_BONUS_BOUNDARY
+      self.score += WALK_BONUS
+      self.walk_bonus_counter = 0
+      self.walk_bonus = true
+      true
+    else
+      false
+    end
+  end
+
+  def finished?
+    completed? || timeout? || timeup?
   end
 end

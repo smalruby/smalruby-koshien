@@ -6,8 +6,12 @@ FactoryBot.define do
     position_y { 0 }
     score { 0 }
     dynamite_left { 3 }
+    bomb_left { 2 }
+    walk_bonus_counter { 0 }
+    acquired_positive_items { [nil, 0, 0, 0, 0, 0] }
+    in_water { false }
     character_level { 1 }
-    status { :active }
+    status { :playing }
     has_goal_bonus { false }
     walk_bonus { false }
     previous_position_x { nil }
@@ -21,12 +25,24 @@ FactoryBot.define do
       dynamite_left { 5 }
     end
 
-    trait :inactive do
-      status { :inactive }
+    trait :with_bomb do
+      bomb_left { 5 }
     end
 
-    trait :defeated do
-      status { :defeated }
+    trait :in_water do
+      in_water { true }
+    end
+
+    trait :completed do
+      status { :completed }
+    end
+
+    trait :timeout do
+      status { :timeout }
+    end
+
+    trait :timeup do
+      status { :timeup }
     end
 
     trait :at_position do

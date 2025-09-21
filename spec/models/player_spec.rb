@@ -89,14 +89,17 @@ RSpec.describe Player, type: :model do
   describe "enum" do
     describe "status enum" do
       it "正常に動作する" do
-        player.status = :active
-        expect(player).to be_active
+        player.status = :playing
+        expect(player).to be_playing
 
-        player.status = :inactive
-        expect(player).to be_inactive
+        player.status = :completed
+        expect(player).to be_completed
 
-        player.status = :defeated
-        expect(player).to be_defeated
+        player.status = :timeout
+        expect(player).to be_timeout
+
+        player.status = :timeup
+        expect(player).to be_timeup
       end
     end
   end
@@ -236,7 +239,7 @@ RSpec.describe Player, type: :model do
 
   describe "スコープ" do
     before do
-      player.status = :active
+      player.status = :playing
       player.save!
     end
 
@@ -249,7 +252,7 @@ RSpec.describe Player, type: :model do
         score: 0,
         dynamite_left: 3,
         character_level: 1,
-        status: :inactive
+        status: :completed
       )
     end
 
