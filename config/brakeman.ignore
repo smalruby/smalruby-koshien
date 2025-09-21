@@ -1,0 +1,29 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Dangerous Eval",
+      "warning_code": 13,
+      "fingerprint": "4137060ea1e8a6f4cb57ad02dade809eb688368c7eb0f490db8dc619390ecb4f",
+      "check_name": "Evaluation",
+      "message": "Dynamic code evaluation",
+      "file": "app/models/ai_engine.rb",
+      "line": 109,
+      "link": "https://brakemanscanner.org/docs/warning_types/dangerous_eval/",
+      "code": "eval(ai_code, create_clean_binding)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "AiExecutionContext",
+        "method": "execute"
+      },
+      "user_input": null,
+      "confidence": "Weak",
+      "cwe_id": [
+        913,
+        95
+      ],
+      "note": ""
+    }
+  ],
+  "brakeman_version": "7.1.0"
+}

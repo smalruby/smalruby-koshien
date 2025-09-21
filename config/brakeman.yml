@@ -1,6 +1,0 @@
----
-:application_path: "."
-:skip_files:
-  - "app/models/ai_engine.rb"
-:quiet: false
-:min_confidence: 2
