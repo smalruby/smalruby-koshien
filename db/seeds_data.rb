@@ -42,11 +42,10 @@ def find_goal_position(players_data)
   {x: 16, y: 16} # デフォルト位置
 end
 
-sample_maps_base_path = "/Users/kouji/work/smalruby/smalruby3-develop/tmp/vendor/smalruby-koshien/sample_maps/2024サンプルマップ"
 preset_maps = []
 
 (1..10).each do |i|
-  map_dir = "#{sample_maps_base_path}/map_#{format("%02d", i)}"
+  map_dir = Rails.root.join("db/seeds_data/game_map_#{format("%02d", i)}")
 
   if Dir.exist?(map_dir)
     begin
