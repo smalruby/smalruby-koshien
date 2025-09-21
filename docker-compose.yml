@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:80"
+    environment:
+      - RAILS_ENV=production
+      - DATABASE_URL=sqlite3:storage/production.sqlite3
+      - SOLID_CACHE_STORE=solid_cache
+      - SOLID_QUEUE_BACKEND=solid_queue
+    volumes:
+      - ./storage:/rails/storage
+      - ./log:/rails/log
+    command: >
+      bash -c "
+        ./bin/rails db:prepare &&
+        ./bin/thrust ./bin/rails server
+      "
+
+  # 開発用サービス（必要時）
+  dev:
+    build:
+      context: .
+      target: build
+    ports:
+      - "3000:3000"
+    environment:
+      - RAILS_ENV=development
+    volumes:
+      - .:/rails
+      - bundler_gems:/usr/local/bundle
+    command: >
+      bash -c "
+        bundle install &&
+        ./bin/rails db:prepare &&
+        ./bin/rails server -b 0.0.0.0
+      "
+
+volumes:
+  bundler_gems:
