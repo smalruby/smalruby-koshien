@@ -178,7 +178,7 @@ class GameEngine
   end
 
   def execute_player_ais(players, turn)
-    ai_engine = AIEngine.new
+    ai_engine = AiEngine.new
 
     players.map do |player|
       # Execute player AI code

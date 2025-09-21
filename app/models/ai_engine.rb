@@ -1,4 +1,4 @@
-class AIEngine
+class AiEngine
   include GameConstants
 
   EXECUTION_TIMEOUT = TURN_DURATION # 10 seconds
@@ -9,9 +9,9 @@ class AIEngine
     get_item_info get_turn_info
   ].freeze
 
-  class AIExecutionError < StandardError; end
-  class AITimeoutError < AIExecutionError; end
-  class AISecurityError < AIExecutionError; end
+  class AiExecutionError < StandardError; end
+  class AiTimeoutError < AiExecutionError; end
+  class AiSecurityError < AiExecutionError; end
 
   def initialize
     @execution_context = nil
@@ -31,20 +31,20 @@ class AIEngine
       validate_ai_result(result)
     rescue Timeout::Error
       Rails.logger.error "AI execution timeout for player #{player.id}"
-      raise AITimeoutError, "AI execution timed out"
+      raise AiTimeoutError, "AI execution timed out"
     rescue SecurityError => e
       Rails.logger.error "AI security violation for player #{player.id}: #{e.message}"
-      raise AISecurityError, "AI code violated security policy: #{e.message}"
+      raise AiSecurityError, "AI code violated security policy: #{e.message}"
     rescue => e
       Rails.logger.error "AI execution error for player #{player.id}: #{e.message}"
-      raise AIExecutionError, "AI execution failed: #{e.message}"
+      raise AiExecutionError, "AI execution failed: #{e.message}"
     end
   end
 
   private
 
   def create_execution_context(player, game_state, turn)
-    AIExecutionContext.new(player, game_state, turn)
+    AiExecutionContext.new(player, game_state, turn)
   end
 
   def execute_with_timeout(ai_code, context)
@@ -61,12 +61,12 @@ class AIEngine
   def validate_ai_result(result)
     # Ensure result is a hash with valid actions
     unless result.is_a?(Hash)
-      raise AIExecutionError, "AI must return a hash"
+      raise AiExecutionError, "AI must return a hash"
     end
 
     # Validate action format
     if result[:action] && !valid_action?(result[:action])
-      raise AIExecutionError, "Invalid action: #{result[:action]}"
+      raise AiExecutionError, "Invalid action: #{result[:action]}"
     end
 
     result
@@ -89,7 +89,7 @@ class AIEngine
   end
 
   # Secured execution context for AI code
-  class AIExecutionContext
+  class AiExecutionContext
     include GameConstants
 
     def initialize(player, game_state, turn)

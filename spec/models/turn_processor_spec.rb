@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe TurnProcessor, type: :service do
+RSpec.describe TurnProcessor, type: :model do
   let!(:game_map) { create(:game_map) }
   let!(:first_player_ai) { create(:player_ai) }
   let!(:second_player_ai) { create(:player_ai) }

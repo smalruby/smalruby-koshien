@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe GameEngine, type: :service do
+RSpec.describe GameEngine, type: :model do
   let!(:game_map) { create(:game_map) }
   let!(:first_player_ai) { create(:player_ai, :preset, code: "move_up") }
   let!(:second_player_ai) { create(:player_ai, :preset, code: "move_down") }

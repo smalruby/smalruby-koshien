@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe AIEngine, type: :service do
+RSpec.describe AiEngine, type: :model do
   let(:ai_engine) { described_class.new }
   let!(:game_map) { create(:game_map) }
   let!(:player_ai) { create(:player_ai, code: ai_code) }
@@ -110,7 +110,7 @@ RSpec.describe AIEngine, type: :service do
       it "AIExecutionErrorを発生させる" do
         expect {
           ai_engine.execute_ai(player: player, game_state: game_state, turn: turn)
-        }.to raise_error(AIEngine::AIExecutionError)
+        }.to raise_error(AiEngine::AiExecutionError)
       end
     end
 
@@ -120,7 +120,7 @@ RSpec.describe AIEngine, type: :service do
       it "SecurityErrorまたはNoMethodErrorを発生させる" do
         expect {
           ai_engine.execute_ai(player: player, game_state: game_state, turn: turn)
-        }.to raise_error(AIEngine::AIExecutionError)
+        }.to raise_error(AiEngine::AiExecutionError)
       end
     end
 
@@ -130,7 +130,7 @@ RSpec.describe AIEngine, type: :service do
       it "AITimeoutErrorを発生させる" do
         expect {
           ai_engine.execute_ai(player: player, game_state: game_state, turn: turn)
-        }.to raise_error(AIEngine::AITimeoutError)
+        }.to raise_error(AiEngine::AiTimeoutError)
       end
     end
   end
@@ -162,8 +162,8 @@ RSpec.describe AIEngine, type: :service do
     end
   end
 
-  describe "AIExecutionContext" do
-    let(:context) { AIEngine::AIExecutionContext.new(player, game_state, turn) }
+  describe "AiExecutionContext" do
+    let(:context) { AiEngine::AiExecutionContext.new(player, game_state, turn) }
 
     describe "安全なAPIメソッド" do
       it "プレイヤー情報を取得できる" do
