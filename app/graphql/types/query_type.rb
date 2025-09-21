@@ -38,17 +38,6 @@ module Types
       GameMap.all
     end
 
-    # Game queries
-    field :game, Types::GameType, null: true,
-      description: "Get a specific game" do
-      argument :id, ID, required: true
-    end
-    def game(id:)
-      Game.find(id)
-    rescue ActiveRecord::RecordNotFound
-      nil
-    end
-
     field :games, [Types::GameType], null: false,
       description: "Get all games" do
       argument :limit, Integer, required: false, default_value: 10

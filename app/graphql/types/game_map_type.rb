@@ -1,6 +1,5 @@
 module Types
   class GameMapType < Types::BaseObject
-    field :id, ID, null: false
     field :name, String, null: false
     field :description, String, null: true
     field :thumbnail_url, String, null: true
@@ -13,11 +12,15 @@ module Types
 
     def goal_position
       pos = object.goal_position_object
-      pos ? { x: pos[:x], y: pos[:y] } : { x: 0, y: 0 }
+      pos ? {x: pos[:x], y: pos[:y]} : {x: 0, y: 0}
     end
 
     def size
       object.size
+    end
+
+    def thumbnail_url
+      object.thumbnail.attached? ? Rails.application.routes.url_helpers.rails_blob_url(object.thumbnail, only_path: false) : nil
     end
   end
 end

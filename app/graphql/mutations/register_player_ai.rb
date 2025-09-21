@@ -25,7 +25,7 @@ module Mutations
           errors: player_ai.errors.full_messages
         }
       end
-    rescue StandardError => e
+    rescue => e
       {
         player_ai: nil,
         errors: [e.message]

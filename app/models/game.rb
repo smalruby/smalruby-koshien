@@ -1,6 +1,6 @@
 class Game < ApplicationRecord
-  belongs_to :first_player_ai, class_name: 'PlayerAi'
-  belongs_to :second_player_ai, class_name: 'PlayerAi'
+  belongs_to :first_player_ai, class_name: "PlayerAi"
+  belongs_to :second_player_ai, class_name: "PlayerAi"
   belongs_to :game_map
 
   enum :status, {

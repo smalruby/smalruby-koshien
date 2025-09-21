@@ -1,11 +1,11 @@
 class PlayerAi < ApplicationRecord
-  validates :name, presence: true, length: { maximum: 100 }
-  validates :code, presence: true, length: { maximum: 10000 }
-  validates :author, length: { maximum: 100 }
+  validates :name, presence: true, length: {maximum: 100}
+  validates :code, presence: true, length: {maximum: 10000}
+  validates :author, length: {maximum: 100}
 
-  scope :available, -> { where('expires_at > ?', Time.current) }
-  scope :expired, -> { where('expires_at <= ?', Time.current) }
-  scope :preset, -> { where(author: 'system') }
+  scope :available, -> { where("expires_at > ?", Time.current) }
+  scope :expired, -> { where("expires_at <= ?", Time.current) }
+  scope :preset, -> { where(author: "system") }
 
   before_create :set_expiration
 
@@ -14,7 +14,7 @@ class PlayerAi < ApplicationRecord
   end
 
   def preset?
-    author == 'system'
+    author == "system"
   end
 
   private
