@@ -8,11 +8,11 @@ This document describes the complete game logic implementation for Smalruby Kosh
 
 ### Core Components
 
-1. **BattleJob** - Async job handler for game execution
-2. **GameEngine** - Main game coordination and battle management
-3. **AIEngine** - Secure Ruby code execution with sandboxing
-4. **TurnProcessor** - Individual turn logic and game mechanics
-5. **GameConstants** - Game configuration and constants
+1. **BattleJob** - Async job handler for game execution (app/jobs/)
+2. **GameEngine** - Main game coordination and battle management (app/models/)
+3. **AIEngine** - Secure Ruby code execution with sandboxing (app/models/)
+4. **TurnProcessor** - Individual turn logic and game mechanics (app/models/)
+5. **GameConstants** - Game configuration and constants (app/models/concerns/)
 
 ### Data Models
 

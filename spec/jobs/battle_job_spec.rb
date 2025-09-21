@@ -1,7 +1,4 @@
 require "rails_helper"
-require_relative "../../app/services/game_engine"
-require_relative "../../app/services/ai_engine"
-require_relative "../../app/services/turn_processor"
 
 RSpec.describe BattleJob, type: :job do
   let!(:game_map) { create(:game_map) }

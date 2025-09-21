@@ -1,5 +1,4 @@
 require "rails_helper"
-require_relative "../../app/services/turn_processor"
 
 RSpec.describe TurnProcessor, type: :service do
   let!(:game_map) { create(:game_map) }

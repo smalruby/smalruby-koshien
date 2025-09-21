@@ -1,5 +1,4 @@
 require "rails_helper"
-require_relative "../../app/services/ai_engine"
 
 RSpec.describe AIEngine, type: :service do
   let(:ai_engine) { described_class.new }
