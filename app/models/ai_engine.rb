@@ -35,6 +35,9 @@ class AiEngine
     rescue SecurityError => e
       Rails.logger.error "AI security violation for player #{player.id}: #{e.message}"
       raise AiSecurityError, "AI code violated security policy: #{e.message}"
+    rescue SyntaxError => e
+      Rails.logger.error "AI syntax error for player #{player.id}: #{e.message}"
+      raise AiExecutionError, "AI syntax error: #{e.message}"
     rescue => e
       Rails.logger.error "AI execution error for player #{player.id}: #{e.message}"
       raise AiExecutionError, "AI execution failed: #{e.message}"
@@ -100,52 +103,23 @@ class AiEngine
     end
 
     def execute(ai_code)
-      # Create a clean binding for code execution
-      binding_context = create_clean_binding
-
       # Execute the AI code in the secured context
+      # Block dangerous methods
+      dangerous_methods = %w[system exec ` eval instance_eval class_eval load require]
+      dangerous_methods.each do |method|
+        if ai_code.include?(method)
+          raise SecurityError, "Dangerous method '#{method}' is not allowed"
+        end
+      end
+
       # standard:disable Security/Eval
       # rubocop:disable Security/Eval
-      result = eval(ai_code, binding_context)
+      result = eval(ai_code)
       # rubocop:enable Security/Eval
       # standard:enable Security/Eval
 
       # Return the collected actions or result
       @actions.any? ? {actions: @actions} : (result || {action: {type: "wait"}})
-    end
-
-    private
-
-    def create_clean_binding
-      # Create a restricted binding that only allows safe operations
-      bind = binding
-
-      # Remove dangerous methods from the binding
-      remove_dangerous_methods(bind)
-
-      bind
-    end
-
-    def remove_dangerous_methods(bind)
-      # List of dangerous methods to remove
-      dangerous_methods = %w[
-        eval exec system ` fork spawn
-        require load autoload
-        exit exit! abort
-        File Dir IO
-        const_set const_get
-        instance_variable_set instance_variable_get
-        class_variable_set class_variable_get
-        send __send__ public_send
-        method define_method
-        proc lambda
-      ]
-
-      dangerous_methods.each do |method_name|
-        bind.eval("undef #{method_name}") if bind.eval("defined?(#{method_name})")
-      rescue NameError
-        # Method doesn't exist, which is fine
-      end
     end
 
     # Safe API methods for AI code

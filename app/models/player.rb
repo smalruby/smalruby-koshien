@@ -7,6 +7,7 @@ class Player < ApplicationRecord
   validates :position_x, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :position_y, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :score, presence: true, numericality: {greater_than_or_equal_to: 0}
+  validates :hp, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :dynamite_left, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :bomb_left, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :character_level, presence: true, numericality: {greater_than_or_equal_to: 1}
@@ -81,7 +82,7 @@ class Player < ApplicationRecord
 
   def calc_character_level(total_score = nil)
     score_to_calc = total_score || score
-    [(score_to_calc - 1).div(20), 0].max.clamp(0, 8)
+    [(score_to_calc - 1).div(20), 0].max.clamp(1, 8)
   end
 
   def update_character_level
@@ -116,6 +117,17 @@ class Player < ApplicationRecord
 
   def finished?
     completed? || timeout? || timeup?
+  end
+
+  def alive?
+    hp > 0
+  end
+
+  def take_damage(damage)
+    self.hp = [hp - damage, 0].max
+    if hp <= 0 && playing?
+      self.status = :completed
+    end
   end
 
   def api_info

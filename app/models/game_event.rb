@@ -11,11 +11,37 @@ class GameEvent < ApplicationRecord
   ENEMY_ENCOUNTER = "enemy_encounter".freeze
   GAME_END = "game_end".freeze
 
+  # TurnProcessor で使用される追加のイベントタイプ
+  AI_TIMEOUT = "AI_TIMEOUT".freeze
+  WAIT = "WAIT".freeze
+  MOVE = "MOVE".freeze
+  MOVE_BLOCKED = "MOVE_BLOCKED".freeze
+  USE_DYNAMITE = "USE_DYNAMITE".freeze
+  USE_DYNAMITE_FAILED = "USE_DYNAMITE_FAILED".freeze
+  USE_BOMB = "USE_BOMB".freeze
+  USE_BOMB_FAILED = "USE_BOMB_FAILED".freeze
+  PLAYER_COLLISION = "PLAYER_COLLISION".freeze
+  COLLECT_ITEM = "COLLECT_ITEM".freeze
+  ENEMY_ATTACK = "ENEMY_ATTACK".freeze
+  WALK_BONUS = "WALK_BONUS".freeze
+
   EVENT_TYPES = [
     PLAYER_MOVE,
     ITEM_COLLECT,
     ENEMY_ENCOUNTER,
-    GAME_END
+    GAME_END,
+    AI_TIMEOUT,
+    WAIT,
+    MOVE,
+    MOVE_BLOCKED,
+    USE_DYNAMITE,
+    USE_DYNAMITE_FAILED,
+    USE_BOMB,
+    USE_BOMB_FAILED,
+    PLAYER_COLLISION,
+    COLLECT_ITEM,
+    ENEMY_ATTACK,
+    WALK_BONUS
   ].freeze
 
   validates :event_type, inclusion: {in: EVENT_TYPES}
