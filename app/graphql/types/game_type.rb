@@ -1,6 +1,5 @@
 module Types
   class GameType < Types::BaseObject
-    field :id, ID, null: false
     field :first_player_ai, Types::PlayerAiType, null: false
     field :second_player_ai, Types::PlayerAiType, null: false
     field :game_map, Types::GameMapType, null: false

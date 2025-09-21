@@ -1,11 +1,13 @@
 class GameMap < ApplicationRecord
-  validates :name, presence: true, length: { maximum: 100 }
+  validates :name, presence: true, length: {maximum: 100}
   validates :map_data, presence: true
   validates :goal_position, presence: true
 
   serialize :map_data, coder: JSON
   serialize :map_height, coder: JSON
   serialize :goal_position, coder: JSON
+
+  has_one_attached :thumbnail
 
   def size
     {

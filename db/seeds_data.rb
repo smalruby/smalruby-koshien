@@ -32,7 +32,7 @@ preset_maps = (1..10).map do |i|
     thumbnail_url: "https://koshien.smalruby.app/maps/map#{i}_thumb.png",
     map_data: Array.new(10) { Array.new(10) { rand(3) } }, # 10x10のランダムマップ
     map_height: Array.new(10) { Array.new(10) { 0 } },     # 高さ情報
-    goal_position: { x: 9, y: 9 }                          # ゴール位置
+    goal_position: {x: 9, y: 9}                          # ゴール位置
   }
 end
 

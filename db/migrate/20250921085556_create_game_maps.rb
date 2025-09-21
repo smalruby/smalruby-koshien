@@ -3,7 +3,6 @@ class CreateGameMaps < ActiveRecord::Migration[8.0]
     create_table :game_maps do |t|
       t.string :name
       t.text :description
-      t.string :thumbnail_url
       t.text :map_data
       t.text :map_height
       t.text :goal_position
