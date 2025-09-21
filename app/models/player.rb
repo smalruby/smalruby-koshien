@@ -117,4 +117,24 @@ class Player < ApplicationRecord
   def finished?
     completed? || timeout? || timeup?
   end
+
+  def api_info
+    {
+      id: id,
+      x: position_x,
+      y: position_y,
+      prev_x: previous_position_x,
+      prev_y: previous_position_y,
+      score: score,
+      hp: hp,
+      character_level: character_level,
+      dynamite_left: dynamite_left,
+      bomb_left: bomb_left,
+      walk_bonus_counter: walk_bonus_counter,
+      acquired_positive_items: acquired_positive_items,
+      status: status,
+      has_goal_bonus: has_goal_bonus?,
+      walk_bonus: walk_bonus?
+    }
+  end
 end
