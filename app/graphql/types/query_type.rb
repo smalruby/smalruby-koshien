@@ -18,14 +18,33 @@ module Types
       ids.map { |id| context.schema.object_from_id(id, context) }
     end
 
-    # Add root-level fields here.
-    # They will be entry points for queries on your schema.
+    # PlayerAi queries
+    field :available_player_ais, [Types::PlayerAiType], null: false,
+      description: "Get available player AIs"
+    def available_player_ais
+      PlayerAi.available
+    end
 
-    # TODO: remove me
-    field :test_field, String, null: false,
-      description: "An example field added by the generator"
-    def test_field
-      "Hello World!"
+    field :preset_player_ais, [Types::PlayerAiType], null: false,
+      description: "Get preset player AIs"
+    def preset_player_ais
+      PlayerAi.preset.available
+    end
+
+    # GameMap queries
+    field :game_maps, [Types::GameMapType], null: false,
+      description: "Get all game maps"
+    def game_maps
+      GameMap.all
+    end
+
+    field :games, [Types::GameType], null: false,
+      description: "Get all games" do
+      argument :limit, Integer, required: false, default_value: 10
+      argument :offset, Integer, required: false, default_value: 0
+    end
+    def games(limit: 10, offset: 0)
+      Game.recent.limit(limit).offset(offset)
     end
   end
 end
