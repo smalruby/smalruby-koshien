@@ -8,60 +8,60 @@ RSpec.describe Enemy, type: :model do
   let(:game_round) { GameRound.create!(game: game, round_number: 1, status: :preparing, item_locations: {}) }
   let(:enemy) { Enemy.new(game_round: game_round, position_x: 5, position_y: 5, hp: 100, attack_power: 20) }
 
-  describe "validations" do
-    it "is valid with valid attributes" do
+  describe "バリデーション" do
+    it "有効な属性で有効である" do
       expect(enemy).to be_valid
     end
 
-    it "requires game_round" do
+    it "game_roundが必須である" do
       enemy.game_round = nil
       expect(enemy).not_to be_valid
       expect(enemy.errors[:game_round]).to include("must exist")
     end
 
-    it "requires position_x" do
+    it "position_xが必須である" do
       enemy.position_x = nil
       expect(enemy).not_to be_valid
       expect(enemy.errors[:position_x]).to include("can't be blank")
     end
 
-    it "requires non-negative position_x" do
+    it "position_xが非負数である" do
       enemy.position_x = -1
       expect(enemy).not_to be_valid
       expect(enemy.errors[:position_x]).to include("must be greater than or equal to 0")
     end
 
-    it "requires position_y" do
+    it "position_yが必須である" do
       enemy.position_y = nil
       expect(enemy).not_to be_valid
       expect(enemy.errors[:position_y]).to include("can't be blank")
     end
 
-    it "requires non-negative position_y" do
+    it "position_yが非負数である" do
       enemy.position_y = -1
       expect(enemy).not_to be_valid
       expect(enemy.errors[:position_y]).to include("must be greater than or equal to 0")
     end
 
-    it "requires hp" do
+    it "hpが必須である" do
       enemy.hp = nil
       expect(enemy).not_to be_valid
       expect(enemy.errors[:hp]).to include("can't be blank")
     end
 
-    it "requires non-negative hp" do
+    it "hpが非負数である" do
       enemy.hp = -1
       expect(enemy).not_to be_valid
       expect(enemy.errors[:hp]).to include("must be greater than or equal to 0")
     end
 
-    it "requires attack_power" do
+    it "attack_powerが必須である" do
       enemy.attack_power = nil
       expect(enemy).not_to be_valid
       expect(enemy.errors[:attack_power]).to include("can't be blank")
     end
 
-    it "requires non-negative attack_power" do
+    it "attack_powerが非負数である" do
       enemy.attack_power = -1
       expect(enemy).not_to be_valid
       expect(enemy.errors[:attack_power]).to include("must be greater than or equal to 0")
@@ -69,53 +69,53 @@ RSpec.describe Enemy, type: :model do
   end
 
   describe "#position" do
-    it "returns hash with x and y" do
+    it "xとyのハッシュを返す" do
       expected_position = {x: 5, y: 5}
       expect(enemy.position).to eq(expected_position)
     end
   end
 
   describe "#alive?" do
-    it "returns true when hp is greater than 0" do
+    it "hpが0より大きい時にtrueを返す" do
       enemy.hp = 50
       expect(enemy).to be_alive
     end
 
-    it "returns false when hp is 0" do
+    it "hpが0の時にfalseを返す" do
       enemy.hp = 0
       expect(enemy).not_to be_alive
     end
 
-    it "returns false when hp is negative" do
+    it "hpが負数の時にfalseを返す" do
       enemy.hp = -10
       expect(enemy).not_to be_alive
     end
   end
 
   describe "#defeated?" do
-    it "returns false when hp is greater than 0" do
+    it "hpが0より大きい時にfalseを返す" do
       enemy.hp = 50
       expect(enemy).not_to be_defeated
     end
 
-    it "returns true when hp is 0" do
+    it "hpが0の時にtrueを返す" do
       enemy.hp = 0
       expect(enemy).to be_defeated
     end
 
-    it "returns true when hp is negative" do
+    it "hpが負数の時にtrueを返す" do
       enemy.hp = -10
       expect(enemy).to be_defeated
     end
   end
 
-  describe "alive? and defeated? relationship" do
-    it "should be opposites when hp > 0" do
+  describe "alive?とdefeated?の関係" do
+    it "hp > 0の時は反対の結果である" do
       enemy.hp = 50
       expect(enemy.alive?).to eq(!enemy.defeated?)
     end
 
-    it "should be opposites when hp = 0" do
+    it "hp = 0の時は反対の結果である" do
       enemy.hp = 0
       expect(enemy.alive?).to eq(!enemy.defeated?)
     end

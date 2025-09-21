@@ -9,36 +9,36 @@ RSpec.describe GameEvent, type: :model do
   let(:game_turn) { GameTurn.create!(game_round: game_round, turn_number: 1, turn_finished: false) }
   let(:game_event) { GameEvent.new(game_turn: game_turn, event_type: GameEvent::PLAYER_MOVE, event_data: {player_id: 1, from: [0, 0], to: [1, 0]}) }
 
-  describe "validations" do
-    it "is valid with valid attributes" do
+  describe "バリデーション" do
+    it "有効な属性で有効である" do
       expect(game_event).to be_valid
     end
 
-    it "requires game_turn" do
+    it "game_turnが必須である" do
       game_event.game_turn = nil
       expect(game_event).not_to be_valid
       expect(game_event.errors[:game_turn]).to include("must exist")
     end
 
-    it "requires event_type" do
+    it "event_typeが必須である" do
       game_event.event_type = nil
       expect(game_event).not_to be_valid
       expect(game_event.errors[:event_type]).to include("can't be blank")
     end
 
-    it "requires event_data" do
+    it "event_dataが必須である" do
       game_event.event_data = nil
       expect(game_event).not_to be_valid
       expect(game_event.errors[:event_data]).to include("can't be blank")
     end
 
-    it "validates event_type inclusion" do
+    it "event_typeの包含を検証する" do
       game_event.event_type = "invalid_type"
       expect(game_event).not_to be_valid
       expect(game_event.errors[:event_type]).to include("is not included in the list")
     end
 
-    it "accepts valid event types" do
+    it "有効なevent_typeを受け入れる" do
       GameEvent::EVENT_TYPES.each do |event_type|
         game_event.event_type = event_type
         expect(game_event).to be_valid, "#{event_type} should be valid"
@@ -46,21 +46,21 @@ RSpec.describe GameEvent, type: :model do
     end
   end
 
-  describe "event_data serialization" do
-    it "serializes event_data as JSON" do
+  describe "event_dataシリアライゼーション" do
+    it "event_dataをJSONとしてシリアライズする" do
       game_event.save!
       game_event.reload
       expect(game_event.event_data).to eq({"player_id" => 1, "from" => [0, 0], "to" => [1, 0]})
     end
   end
 
-  describe "scopes" do
+  describe "スコープ" do
     before do
       game_event.save!
     end
 
     describe ".by_type" do
-      it "filters by event type" do
+      it "イベントタイプでフィルタリングする" do
         item_event = GameEvent.create!(game_turn: game_turn, event_type: GameEvent::ITEM_COLLECT, event_data: {player_id: 1, item_type: "coin"})
 
         move_events = GameEvent.by_type(GameEvent::PLAYER_MOVE)
@@ -74,7 +74,7 @@ RSpec.describe GameEvent, type: :model do
     end
 
     describe ".ordered" do
-      it "orders by turn number and created_at" do
+      it "ターン番号とcreated_atで並べ替える" do
         sleep(0.001) # Ensure different created_at times
 
         later_turn = GameTurn.create!(game_round: game_round, turn_number: 2, turn_finished: false)
@@ -97,15 +97,15 @@ RSpec.describe GameEvent, type: :model do
     end
   end
 
-  describe "constants" do
-    it "defines event type constants" do
+  describe "定数" do
+    it "イベントタイプ定数を定義する" do
       expect(GameEvent::PLAYER_MOVE).to eq("player_move")
       expect(GameEvent::ITEM_COLLECT).to eq("item_collect")
       expect(GameEvent::ENEMY_ENCOUNTER).to eq("enemy_encounter")
       expect(GameEvent::GAME_END).to eq("game_end")
     end
 
-    it "includes all defined constants in EVENT_TYPES" do
+    it "定義された全ての定数をEVENT_TYPESに含む" do
       expected_types = [
         GameEvent::PLAYER_MOVE,
         GameEvent::ITEM_COLLECT,

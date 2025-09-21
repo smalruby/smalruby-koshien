@@ -7,36 +7,36 @@ RSpec.describe GameRound, type: :model do
   let(:game) { Game.create!(first_player_ai: player_ai_1, second_player_ai: player_ai_2, game_map: game_map, battle_url: "https://test.example.com/battle/1") }
   let(:game_round) { GameRound.new(game: game, round_number: 1, status: :preparing, item_locations: {"1,1" => "coin", "5,5" => "gem"}) }
 
-  describe "validations" do
-    it "is valid with valid attributes" do
+  describe "バリデーション" do
+    it "有効な属性で有効である" do
       expect(game_round).to be_valid
     end
 
-    it "requires game" do
+    it "gameが必須である" do
       game_round.game = nil
       expect(game_round).not_to be_valid
       expect(game_round.errors[:game]).to include("must exist")
     end
 
-    it "requires round_number" do
+    it "round_numberが必須である" do
       game_round.round_number = nil
       expect(game_round).not_to be_valid
       expect(game_round.errors[:round_number]).to include("can't be blank")
     end
 
-    it "requires status" do
+    it "statusが必須である" do
       game_round.status = nil
       expect(game_round).not_to be_valid
       expect(game_round.errors[:status]).to include("can't be blank")
     end
 
-    it "requires item_locations" do
+    it "item_locationsが必須である" do
       game_round.item_locations = nil
       expect(game_round).not_to be_valid
       expect(game_round.errors[:item_locations]).to include("can't be blank")
     end
 
-    it "validates uniqueness of round_number scoped to game" do
+    it "gameごとのround_numberの一意性を検証する" do
       game_round.save!
 
       duplicate_round = GameRound.new(
@@ -50,7 +50,7 @@ RSpec.describe GameRound, type: :model do
       expect(duplicate_round.errors[:round_number]).to include("has already been taken")
     end
 
-    it "allows same round_number for different games" do
+    it "異なるgameで同じround_numberを許可する" do
       game_round.save!
 
       another_game = Game.create!(
@@ -71,10 +71,10 @@ RSpec.describe GameRound, type: :model do
     end
   end
 
-  describe "associations" do
+  describe "関連" do
     before { game_round.save! }
 
-    it "has many players with dependent destroy" do
+    it "複数のplayerをdependent destroyで持つ" do
       player = Player.create!(
         game_round: game_round,
         player_ai: player_ai_1,
@@ -89,7 +89,7 @@ RSpec.describe GameRound, type: :model do
       expect { game_round.destroy }.to change(Player, :count).by(-1)
     end
 
-    it "has many enemies with dependent destroy" do
+    it "複数のenemyをdependent destroyで持つ" do
       enemy = Enemy.create!(
         game_round: game_round,
         position_x: 5,
@@ -102,7 +102,7 @@ RSpec.describe GameRound, type: :model do
       expect { game_round.destroy }.to change(Enemy, :count).by(-1)
     end
 
-    it "has many game_turns with dependent destroy" do
+    it "複数のgame_turnをdependent destroyで持つ" do
       game_turn = GameTurn.create!(
         game_round: game_round,
         turn_number: 1,
@@ -114,9 +114,9 @@ RSpec.describe GameRound, type: :model do
     end
   end
 
-  describe "enums" do
+  describe "enum" do
     describe "status enum" do
-      it "works correctly" do
+      it "正常に動作する" do
         game_round.status = :preparing
         expect(game_round).to be_preparing
 
@@ -129,7 +129,7 @@ RSpec.describe GameRound, type: :model do
     end
 
     describe "winner enum" do
-      it "works correctly" do
+      it "正常に動作する" do
         game_round.winner = :no_winner
         expect(game_round).to be_no_winner
 
@@ -145,13 +145,13 @@ RSpec.describe GameRound, type: :model do
     end
   end
 
-  describe "scopes" do
+  describe "スコープ" do
     before { game_round.save! }
 
     let!(:round_2) { GameRound.create!(game: game, round_number: 2, status: :preparing, item_locations: {}) }
 
     describe ".by_round_number" do
-      it "filters by round number" do
+      it "ラウンド番号でフィルタリングする" do
         round_1_results = GameRound.by_round_number(1)
         round_2_results = GameRound.by_round_number(2)
 
@@ -163,7 +163,7 @@ RSpec.describe GameRound, type: :model do
     end
 
     describe ".finished_rounds" do
-      it "returns only finished rounds" do
+      it "終了したラウンドのみを返す" do
         finished_round = GameRound.create!(
           game: game,
           round_number: 3,
