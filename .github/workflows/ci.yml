@@ -59,8 +59,55 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           RAILS_ENV: test
           # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test
+        run: |
+          bin/rails db:test:prepare
+          bundle exec rspec --format progress
+
+      - name: Upload coverage reports to artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+
+      - name: Generate coverage summary
+        id: coverage
+        run: |
+          # Extract coverage percentage from SimpleCov JSON report
+          COVERAGE=$(ruby -r json -e "
+            data = JSON.parse(File.read('coverage/.resultset.json'))
+            puts data['RSpec']['coverage'].values.flatten.sum.to_f / data['RSpec']['coverage'].values.flatten.size * 100
+          " 2>/dev/null || echo "0")
+          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "Coverage: $COVERAGE%"
+
+      - name: Comment coverage on PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const coverage = '${{ steps.coverage.outputs.percentage }}';
+            const coverageFloat = parseFloat(coverage);
+            const coverageEmoji = coverageFloat >= 80 ? '✅' : coverageFloat >= 70 ? '⚠️' : '❌';
+
+            const comment = `## 📊 Code Coverage Report
+
+            ${coverageEmoji} **Coverage: ${coverageFloat.toFixed(2)}%**
+
+            Coverage threshold:
+            - ✅ Good: ≥80%
+            - ⚠️ Acceptable: ≥70%
+            - ❌ Needs improvement: <70%
+
+            📈 [View detailed coverage report in artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
