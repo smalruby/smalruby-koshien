@@ -13,8 +13,11 @@ class CreatePlayers < ActiveRecord::Migration[8.0]
       t.boolean :in_water
       t.boolean :movable
       t.integer :dynamite_left
+      t.integer :bomb_left, default: 2, null: false
       t.integer :character_level
+      t.integer :walk_bonus_counter, default: 0, null: false
       t.boolean :walk_bonus
+      t.json :acquired_positive_items, default: [nil, 0, 0, 0, 0, 0]
 
       t.timestamps
     end
