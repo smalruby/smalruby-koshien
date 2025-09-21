@@ -35,7 +35,7 @@ end
 RSpec.configure do |config|
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
   config.fixture_paths = [
-    Rails.root.join("test/fixtures") # Use existing fixtures from test directory
+    Rails.root.join("spec/fixtures") # Use fixtures from spec directory
   ]
 
   # If you're not using ActiveRecord, or you'd prefer not to run each of your
