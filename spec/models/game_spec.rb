@@ -29,42 +29,42 @@ RSpec.describe Game, type: :model do
       expect(game.errors[:game_map]).to include("must exist")
     end
 
-    it "requires battle_url on create" do
+    it "作成時にbattle_urlが必須である" do
       new_game = Game.new(first_player_ai: player_ai_1, second_player_ai: player_ai_2, game_map: game_map)
       expect(new_game).not_to be_valid
       expect(new_game.errors[:battle_url]).to include("can't be blank")
     end
   end
 
-  describe "associations" do
+  describe "関連" do
     before { game.save! }
 
-    it "belongs to first_player_ai" do
+    it "first_player_aiに属する" do
       expect(game.first_player_ai).to eq(player_ai_1)
     end
 
-    it "belongs to second_player_ai" do
+    it "second_player_aiに属する" do
       expect(game.second_player_ai).to eq(player_ai_2)
     end
 
-    it "belongs to game_map" do
+    it "game_mapに属する" do
       expect(game.game_map).to eq(game_map)
     end
 
-    it "has many game_rounds" do
+    it "複数のgame_roundを持つ" do
       game_round = GameRound.create!(game: game, round_number: 1, status: :preparing, item_locations: {})
       expect(game.game_rounds).to include(game_round)
     end
 
-    it "destroys associated game_rounds when destroyed" do
+    it "削除時に関連するgame_roundを削除する" do
       GameRound.create!(game: game, round_number: 1, status: :preparing, item_locations: {})
       expect { game.destroy }.to change(GameRound, :count).by(-1)
     end
   end
 
-  describe "enums" do
+  describe "enum" do
     describe "status enum" do
-      it "works correctly" do
+      it "正常に動作する" do
         game.status = :waiting_for_players
         expect(game).to be_waiting_for_players
 
@@ -80,7 +80,7 @@ RSpec.describe Game, type: :model do
     end
 
     describe "winner enum" do
-      it "works correctly" do
+      it "正常に動作する" do
         game.winner = :first
         expect(game).to be_winner_first
 
@@ -90,7 +90,7 @@ RSpec.describe Game, type: :model do
     end
   end
 
-  describe "scopes" do
+  describe "スコープ" do
     let!(:old_game) { Game.create!(first_player_ai: player_ai_1, second_player_ai: player_ai_2, game_map: game_map, battle_url: "https://test.com/old") }
     let!(:cancelled_game) { Game.create!(first_player_ai: player_ai_1, second_player_ai: player_ai_2, game_map: game_map, battle_url: "https://test.com/cancelled", status: :cancelled) }
 
@@ -100,7 +100,7 @@ RSpec.describe Game, type: :model do
     end
 
     describe ".recent" do
-      it "orders by created_at descending" do
+      it "created_atの降順で並べ替える" do
         recent_games = Game.recent
         expect(recent_games.first).to eq(game)
         expect(recent_games.last).to eq(old_game)
@@ -108,7 +108,7 @@ RSpec.describe Game, type: :model do
     end
 
     describe ".active" do
-      it "returns waiting_for_players and in_progress games" do
+      it "waiting_for_playersとin_progressのgameを返す" do
         game.update!(status: :waiting_for_players)
         active_games = Game.active
         expect(active_games).to include(game)
@@ -117,49 +117,49 @@ RSpec.describe Game, type: :model do
     end
   end
 
-  describe "instance methods" do
+  describe "インスタンスメソッド" do
     describe "#finished?" do
-      it "returns true when completed" do
+      it "完了時にtrueを返す" do
         game.status = :completed
         expect(game).to be_finished
       end
 
-      it "returns true when cancelled" do
+      it "キャンセル時にtrueを返す" do
         game.status = :cancelled
         expect(game).to be_finished
       end
 
-      it "returns false when in progress" do
+      it "進行中にfalseを返す" do
         game.status = :in_progress
         expect(game).not_to be_finished
       end
     end
 
     describe "#player_ais" do
-      it "returns array of both player AIs" do
+      it "両方のplayer AIの配列を返す" do
         expect(game.player_ais).to eq([player_ai_1, player_ai_2])
       end
     end
 
     describe "#winner_ai" do
-      it "returns first_player_ai when winner is first" do
+      it "勝者がfirstの時にfirst_player_aiを返す" do
         game.status = :completed
         game.winner = :first
         expect(game.winner_ai).to eq(player_ai_1)
       end
 
-      it "returns second_player_ai when winner is second" do
+      it "勝者がsecondの時にsecond_player_aiを返す" do
         game.status = :completed
         game.winner = :second
         expect(game.winner_ai).to eq(player_ai_2)
       end
 
-      it "returns nil when game is not finished" do
+      it "ゲームが終了していない時にnilを返す" do
         game.status = :in_progress
         expect(game.winner_ai).to be_nil
       end
 
-      it "returns nil when winner is not set" do
+      it "勝者が設定されていない時にnilを返す" do
         game.status = :completed
         game.winner = nil
         expect(game.winner_ai).to be_nil
@@ -167,26 +167,26 @@ RSpec.describe Game, type: :model do
     end
 
     describe "#loser_ai" do
-      it "returns second_player_ai when winner is first" do
+      it "勝者がfirstの時にsecond_player_aiを返す" do
         game.status = :completed
         game.winner = :first
         expect(game.loser_ai).to eq(player_ai_2)
       end
 
-      it "returns first_player_ai when winner is second" do
+      it "勝者がsecondの時にfirst_player_aiを返す" do
         game.status = :completed
         game.winner = :second
         expect(game.loser_ai).to eq(player_ai_1)
       end
 
-      it "returns nil when game is not finished" do
+      it "ゲームが終了していない時にnilを返す" do
         game.status = :in_progress
         expect(game.loser_ai).to be_nil
       end
     end
 
     describe "#generate_battle_url" do
-      it "generates battle URL with game ID" do
+      it "ゲームIDでバトルURLを生成する" do
         game.save!
         game.generate_battle_url
         expect(game.battle_url).to eq("https://koshien.smalruby.app/battles/#{game.id}")

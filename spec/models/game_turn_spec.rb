@@ -8,40 +8,40 @@ RSpec.describe GameTurn, type: :model do
   let(:game_round) { GameRound.create!(game: game, round_number: 1, status: :preparing, item_locations: {}) }
   let(:game_turn) { GameTurn.new(game_round: game_round, turn_number: 1, turn_finished: false) }
 
-  describe "validations" do
-    it "is valid with valid attributes" do
+  describe "バリデーション" do
+    it "有効な属性で有効である" do
       expect(game_turn).to be_valid
     end
 
-    it "requires game_round" do
+    it "game_roundが必須である" do
       game_turn.game_round = nil
       expect(game_turn).not_to be_valid
       expect(game_turn.errors[:game_round]).to include("must exist")
     end
 
-    it "requires turn_number" do
+    it "turn_numberが必須である" do
       game_turn.turn_number = nil
       expect(game_turn).not_to be_valid
       expect(game_turn.errors[:turn_number]).to include("can't be blank")
     end
 
-    it "requires positive turn_number" do
+    it "turn_numberが正数である" do
       game_turn.turn_number = 0
       expect(game_turn).not_to be_valid
       expect(game_turn.errors[:turn_number]).to include("must be greater than 0")
     end
 
-    it "requires turn_finished to be boolean" do
+    it "turn_finishedがブール値である" do
       game_turn.turn_finished = nil
       expect(game_turn).not_to be_valid
       expect(game_turn.errors[:turn_finished]).to include("is not included in the list")
     end
   end
 
-  describe "associations" do
+  describe "関連" do
     before { game_turn.save! }
 
-    it "has many game_events" do
+    it "複数のgame_eventを持つ" do
       game_event = GameEvent.create!(
         game_turn: game_turn,
         event_type: GameEvent::PLAYER_MOVE,
@@ -50,7 +50,7 @@ RSpec.describe GameTurn, type: :model do
       expect(game_turn.game_events).to include(game_event)
     end
 
-    it "destroys associated game_events when destroyed" do
+    it "削除時に関連するgame_eventを削除する" do
       GameEvent.create!(
         game_turn: game_turn,
         event_type: GameEvent::PLAYER_MOVE,
@@ -61,26 +61,26 @@ RSpec.describe GameTurn, type: :model do
     end
   end
 
-  describe "scopes" do
+  describe "スコープ" do
     let!(:finished_turn) { GameTurn.create!(game_round: game_round, turn_number: 10, turn_finished: true) }
     let!(:unfinished_turn) { GameTurn.create!(game_round: game_round, turn_number: 11, turn_finished: false) }
 
     describe ".finished" do
-      it "returns finished turns" do
+      it "終了したターンを返す" do
         expect(GameTurn.finished).to include(finished_turn)
         expect(GameTurn.finished).not_to include(unfinished_turn)
       end
     end
 
     describe ".unfinished" do
-      it "returns unfinished turns" do
+      it "未終了のターンを返す" do
         expect(GameTurn.unfinished).to include(unfinished_turn)
         expect(GameTurn.unfinished).not_to include(finished_turn)
       end
     end
 
     describe ".ordered" do
-      it "returns turns ordered by turn_number" do
+      it "turn_numberで並べたターンを返す" do
         GameTurn.create!(game_round: game_round, turn_number: 20, turn_finished: false)
         GameTurn.create!(game_round: game_round, turn_number: 21, turn_finished: false)
         GameTurn.create!(game_round: game_round, turn_number: 22, turn_finished: false)
