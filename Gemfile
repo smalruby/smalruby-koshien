@@ -47,4 +47,10 @@ group :development, :test do
 
   # Ruby standard style [https://github.com/testdouble/standard]
   gem "standard", require: false
+
+  # RSpec testing framework [https://github.com/rspec/rspec-rails]
+  gem "rspec-rails", "~> 7.0"
+
+  # Factory Bot for test data [https://github.com/thoughtbot/factory_bot_rails]
+  gem "factory_bot_rails"
 end
