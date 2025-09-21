@@ -1,100 +1,106 @@
-# Smalruby Koshien Game Logic Implementation
+# Smalruby甲子園 ゲームロジック実装
 
-## Overview
+## 概要
 
-This document describes the complete game logic implementation for Smalruby Koshien competition system. The implementation provides a secure, scalable, and comprehensive game execution engine that supports AI battles with full event logging and state management.
+この文書は、Smalruby甲子園競技システムの完全なゲームロジック実装について説明します。この実装は、AIバトルをサポートする安全で拡張性があり、包括的なゲーム実行エンジンを提供し、完全なイベントログと状態管理を備えています。
 
-## Architecture
+## アーキテクチャ
 
-### Core Components
+### コアコンポーネント
 
-1. **BattleJob** - Async job handler for game execution (app/jobs/)
-2. **GameEngine** - Main game coordination and battle management (app/models/)
-3. **AIEngine** - Secure Ruby code execution with sandboxing (app/models/)
-4. **TurnProcessor** - Individual turn logic and game mechanics (app/models/)
-5. **GameConstants** - Game configuration and constants (app/models/concerns/)
+1. **BattleJob** - ゲーム実行のための非同期ジョブハンドラー (app/jobs/)
+2. **GameEngine** - メインゲーム調整とバトル管理 (app/models/)
+3. **AiEngine** - サンドボックス化された安全なRubyコード実行 (app/models/)
+4. **TurnProcessor** - 個別ターンロジックとゲームメカニクス (app/models/)
+5. **GameConstants** - ゲーム設定と定数 (app/models/concerns/)
 
-### Data Models
+### データモデル
 
-- **Game** - Main game entity with player AIs and status
-- **GameRound** - Individual rounds (2 per game) with players and enemies
-- **GameTurn** - Individual turns (max 50 per round) with events
-- **Player** - Player state and position management
-- **Enemy** - Enemy entities with AI behavior
-- **GameEvent** - Comprehensive event logging system
+- **Game** - プレイヤーAIとステータスを持つメインゲームエンティティ
+- **GameRound** - 個別ラウンド（ゲームあたり2回）とプレイヤー、敵
+- **GameTurn** - 個別ターン（ラウンドあたり最大50回）とイベント
+- **Player** - プレイヤーの状態と位置管理
+- **Enemy** - AI動作を持つ敵エンティティ
+- **GameEvent** - 包括的なイベントログシステム
 
-## Game Flow
+## ゲームフロー
 
-### 1. Game Initialization
+### 1. ゲーム初期化
 
-When a game is started via the `startGame` GraphQL mutation:
+`startGame` GraphQL ミューテーションでゲームが開始されると：
 
 ```ruby
-# StartGame mutation triggers BattleJob
+# StartGame ミューテーションが BattleJob をトリガー
 BattleJob.perform_later(game.id)
 ```
 
-### 2. Battle Execution
+### 2. バトル実行
 
 ```ruby
 game_engine = GameEngine.new(game)
 result = game_engine.execute_battle
 ```
 
-**Battle Flow:**
-1. Execute 2 rounds sequentially
-2. Each round: Initialize players, enemies, and items
-3. Execute up to 50 turns per round
-4. Determine round winners
-5. Calculate overall winner based on round results
+**バトルフロー:**
 
-### 3. Round Initialization
+1. 2ラウンドを順次実行
+2. 各ラウンド: プレイヤー、敵、アイテムを初期化
+3. ラウンドあたり最大50ターンを実行
+4. ラウンド勝者を決定
+5. ラウンド結果に基づいて総合勝者を計算
 
-For each round:
-- Create GameRound record
-- Initialize 2 players at start positions
-- Initialize enemies based on map data
-- Generate random item locations
-- Set round status to `in_progress`
+### 3. ラウンド初期化
 
-### 4. Turn Processing
+各ラウンドで：
 
-Each turn:
-1. Execute AI code for all active players
-2. Process player actions (move, use items, wait)
-3. Update enemy states and positions
-4. Process collisions and interactions
-5. Update scores and apply bonuses
-6. Check win conditions
-7. Log all events
+- GameRound レコードを作成
+- 開始位置に2人のプレイヤーを初期化
+- マップデータに基づいて敵を初期化
+- ランダムなアイテム位置を生成
+- ラウンドステータスを `in_progress` に設定
 
-## AI Execution Engine
+### 4. ターン処理
 
-### Security Features
+各ターンで：
 
-The AIEngine provides secure Ruby code execution with multiple safety layers:
+1. 全てのアクティブプレイヤーのAIコードを実行
+2. プレイヤーアクション（移動、アイテム使用、待機）を処理
+3. 敵の状態と位置を更新
+4. 衝突と相互作用を処理
+5. スコアを更新し、ボーナスを適用
+6. 勝利条件をチェック
+7. 全てのイベントをログ記録
 
-**Sandboxing:**
-- Restricted binding with removed dangerous methods
-- Timeout protection (10 seconds per turn)
-- Exception handling and error isolation
-- Memory and resource limits
+## AI実行エンジン
 
-**Allowed API Methods:**
+### セキュリティ機能
+
+AiEngineは複数の安全層を持つ安全なRubyコード実行を提供します：
+
+**サンドボックス化:**
+
+- 危険なメソッドを除去した制限された binding
+- タイムアウト保護（ターンあたり10秒）
+- 例外処理とエラー分離
+- メモリとリソース制限
+
+**許可されたAPIメソッド:**
+
 - `move_up`, `move_down`, `move_left`, `move_right`
 - `use_dynamite`, `use_bomb`
 - `get_player_info`, `get_enemy_info`, `get_map_info`
 - `get_item_info`, `get_turn_info`
 - `wait`, `log`
 
-**Example AI Code:**
+**AIコードの例:**
+
 ```ruby
-# Get current game state
+# 現在のゲーム状態を取得
 player = get_player_info
 enemies = get_enemy_info
 map = get_map_info
 
-# Simple AI logic
+# シンプルなAIロジック
 if player[:x] < 5
   move_right
 elsif enemies.any? { |e| e[:x] == player[:x] && e[:y] == player[:y] }
@@ -104,90 +110,100 @@ else
 end
 ```
 
-### Error Handling
+### エラーハンドリング
 
-- **AITimeoutError** - Code execution exceeds time limit
-- **AISecurityError** - Security policy violation
-- **AIExecutionError** - General execution failure
+- **AiTimeoutError** - コード実行が制限時間を超過
+- **AiSecurityError** - セキュリティポリシー違反
+- **AiExecutionError** - 一般的な実行失敗
 
-Players that encounter errors are marked as `timeout` and removed from active play.
+エラーが発生したプレイヤーは `timeout` としてマークされ、アクティブプレイから除外されます。
 
-## Game Mechanics
+## ゲームメカニクス
 
-### Movement System
+### 移動システム
 
-- **Valid Movements**: Up, Down, Left, Right
-- **Collision Detection**: Walls, water, boundaries
-- **Position Tracking**: Current and previous positions stored
+- **有効な移動**: 上、下、左、右
+- **衝突検出**: 壁、水、境界
+- **位置追跡**: 現在位置と前回位置を保存
 
-### Item System
+### アイテムシステム
 
-**Items Available:**
-- Items 1-5: Positive score bonuses (10, 20, 30, 40, 60 points)
-- Items 6-9: Negative score penalties (-10, -20, -30, -40 points)
-- Dynamite: Explosive item for destroying walls/enemies
-- Bomb: More powerful explosive item
+**利用可能なアイテム:**
 
-**Item Collection:**
-- Automatic when player moves to item location
-- Item removed from map after collection
-- Score immediately updated
+- アイテム1-5: プラススコアボーナス（10、20、30、40、60ポイント）
+- アイテム6-9: マイナススコアペナルティ（-10、-20、-30、-40ポイント）
+- ダイナマイト: 壁や敵を破壊する爆発アイテム
+- 爆弾: より強力な爆発アイテム
 
-### Combat System
+**アイテム収集:**
 
-**Enemy Interaction:**
-- Enemies can attack adjacent players
-- Attack power configurable per enemy
-- Players lose points when attacked (-10 default)
-- Enemies can be destroyed with explosives
+- プレイヤーがアイテム位置に移動すると自動収集
+- 収集後にマップからアイテムが削除
+- スコアが即座に更新
 
-**Explosion Mechanics:**
-- Dynamite and bomb create explosion effects
-- Destroy breakable walls in range
-- Damage enemies in blast radius
-- Can affect multiple players
+### 戦闘システム
 
-### Scoring System
+**敵との相互作用:**
 
-**Score Sources:**
-- Item collection: +10 to +60 points (positive items)
-- Item penalties: -10 to -40 points (negative items)
-- Walk bonus: +3 points every 5 moves
-- Goal bonus: +100 points for reaching goal
-- Enemy damage: -10 points when attacked
+- 敵は隣接するプレイヤーを攻撃可能
+- 敵ごとに設定可能な攻撃力
+- 攻撃されたプレイヤーはポイントを失う（デフォルト-10）
+- 敵は爆発物で破壊可能
 
-**Character Leveling:**
-- Level calculated from total score: `(score - 1) / 20`
-- Level affects player capabilities and appearance
-- Maximum level: 8
+**爆発メカニクス:**
 
-### Win Conditions
+- ダイナマイトと爆弾は爆発効果を作成
+- 範囲内の破壊可能な壁を破壊
+- 爆発範囲内の敵にダメージ
+- 複数のプレイヤーに影響する可能性
 
-**Round End Conditions:**
-1. Player reaches goal position
-2. All players finished/timeout
-3. Maximum turns reached (50)
+### スコアリングシステム
 
-**Overall Winner:**
-1. Player with most round wins
-2. If tied, player with highest total score across rounds
-3. If still tied, result is draw
+**スコア源:**
 
-## Event Logging System
+- アイテム収集: +10〜+60ポイント（プラスアイテム）
+- アイテムペナルティ: -10〜-40ポイント（マイナスアイテム）
+- 歩行ボーナス: 5回移動ごとに+3ポイント
+- ゴールボーナス: ゴール到達で+100ポイント
+- 敵ダメージ: 攻撃を受けると-10ポイント
 
-All game actions are logged as GameEvent records:
+**キャラクターレベリング:**
 
-**Event Types:**
-- `MOVE` - Player movement
-- `MOVE_BLOCKED` - Invalid movement attempt
-- `USE_DYNAMITE` / `USE_BOMB` - Item usage
-- `COLLECT_ITEM` - Item collection
-- `ENEMY_ATTACK` - Enemy attacks player
-- `PLAYER_COLLISION` - Player collision
-- `WALK_BONUS` - Walk bonus applied
-- `AI_TIMEOUT` - AI execution failure
+- レベルは総スコアから計算: `(score - 1) / 20`
+- レベルはプレイヤーの能力と外観に影響
+- 最大レベル: 8
 
-**Event Data Structure:**
+### 勝利条件
+
+**ラウンド終了条件:**
+
+1. プレイヤーがゴール位置に到達
+2. 全プレイヤーが終了/タイムアウト
+3. 最大ターン数に到達（50）
+
+**総合勝者:**
+
+1. 最も多くのラウンドに勝利したプレイヤー
+2. 同点の場合、全ラウンドの総スコアが最も高いプレイヤー
+3. それでも同点の場合、引き分け
+
+## イベントログシステム
+
+全てのゲームアクションはGameEventレコードとしてログ記録されます：
+
+**イベントタイプ:**
+
+- `MOVE` - プレイヤー移動
+- `MOVE_BLOCKED` - 無効な移動試行
+- `USE_DYNAMITE` / `USE_BOMB` - アイテム使用
+- `COLLECT_ITEM` - アイテム収集
+- `ENEMY_ATTACK` - 敵がプレイヤーを攻撃
+- `PLAYER_COLLISION` - プレイヤー衝突
+- `WALK_BONUS` - 歩行ボーナス適用
+- `AI_TIMEOUT` - AI実行失敗
+
+**イベントデータ構造:**
+
 ```ruby
 {
   player: player_reference,
@@ -201,24 +217,24 @@ All game actions are logged as GameEvent records:
 }
 ```
 
-## Configuration
+## ゲーム設定
 
-### Game Constants
+### ゲーム定数
 
 ```ruby
-# Game Settings
+# ゲーム設定
 N_PLAYERS = 2
 N_ROUNDS = 2
 MAX_TURN = 50
-TURN_DURATION = 10  # seconds
+TURN_DURATION = 10  # 秒
 
-# Items
+# アイテム
 N_DYNAMITE = 2
 N_BOMB = 2
 WALK_BONUS = 3
 WALK_BONUS_BOUNDARY = 5
 
-# Map Elements
+# マップ要素
 MAP_BLANK = 0
 MAP_WALL1 = 1
 MAP_WALL2 = 2
@@ -227,11 +243,12 @@ MAP_WATER = 4
 MAP_BREAKABLE_WALL = 5
 ```
 
-## API Integration
+## API統合
 
-### GraphQL Mutations
+### GraphQL ミューテーション
 
-**Start Game:**
+**ゲーム開始:**
+
 ```graphql
 mutation($gameId: ID!) {
   startGame(gameId: $gameId) {
@@ -245,34 +262,34 @@ mutation($gameId: ID!) {
 }
 ```
 
-### Job Processing
+### ジョブ処理
 
-Games are processed asynchronously using ActiveJob:
+ゲームはActiveJobを使用して非同期で処理されます：
 
 ```ruby
-# Queue a battle
+# バトルをキューに追加
 BattleJob.perform_later(game_id)
 
-# Process immediately (for testing)
+# 即座に処理（テスト用）
 BattleJob.perform_now(game_id)
 ```
 
-## Testing
+## テスト
 
-### Test Coverage
+### テストカバレッジ
 
-Comprehensive test suite covering:
+包括的なテストスイートがカバーする項目：
 
-1. **GameEngine Tests** - Battle execution, round management, winner determination
-2. **AIEngine Tests** - Code execution, security, API methods
-3. **TurnProcessor Tests** - Movement, items, collisions, scoring
-4. **BattleJob Tests** - Async execution, error handling
+1. **GameEngine テスト** - バトル実行、ラウンド管理、勝者決定
+2. **AiEngine テスト** - コード実行、セキュリティ、APIメソッド
+3. **TurnProcessor テスト** - 移動、アイテム、衝突、スコア
+4. **BattleJob テスト** - 非同期実行、エラーハンドリング
 
-### Example Test
+### テスト例
 
 ```ruby
 RSpec.describe GameEngine do
-  it "executes a complete battle" do
+  it "完全なバトルを実行する" do
     result = game_engine.execute_battle
 
     expect(result[:success]).to be true
@@ -282,103 +299,103 @@ RSpec.describe GameEngine do
 end
 ```
 
-## Performance Considerations
+## パフォーマンス考慮事項
 
-### Optimization Features
+### 最適化機能
 
-1. **Async Processing** - Games don't block web requests
-2. **Timeout Protection** - Prevents runaway AI code
-3. **Memory Management** - Sandboxed execution contexts
-4. **Database Optimization** - Efficient queries with includes
-5. **Event Batching** - Efficient event logging
+1. **非同期処理** - ゲームはWebリクエストをブロックしない
+2. **タイムアウト保護** - 暴走するAIコードを防ぐ
+3. **メモリ管理** - サンドボックス化された実行コンテキスト
+4. **データベース最適化** - includesを使用した効率的なクエリ
+5. **イベントバッチング** - 効率的なイベントログ
 
-### Monitoring
+### モニタリング
 
-- Comprehensive Rails logging
-- Error tracking and reporting
-- Game execution metrics
-- AI performance monitoring
+- 包括的なRailsログ
+- エラー追跡とレポート
+- ゲーム実行メトリクス
+- AIパフォーマンス監視
 
-## Security
+## セキュリティ
 
-### AI Code Security
+### AIコードセキュリティ
 
-1. **Sandboxed Execution** - Restricted binding environment
-2. **Method Filtering** - Dangerous methods removed
-3. **Timeout Protection** - Execution time limits
-4. **Resource Limits** - Memory and CPU constraints
-5. **Input Validation** - AI action validation
+1. **サンドボックス実行** - 制限されたbinding環境
+2. **メソッドフィルタリング** - 危険なメソッドの除去
+3. **タイムアウト保護** - 実行時間制限
+4. **リソース制限** - メモリとCPU制約
+5. **入力検証** - AIアクション検証
 
-### Data Security
+### データセキュリティ
 
-1. **Input Sanitization** - All user inputs validated
-2. **SQL Injection Prevention** - ActiveRecord protections
-3. **Access Control** - Proper authentication/authorization
-4. **Audit Logging** - Complete event trail
+1. **入力サニタイゼーション** - 全ユーザー入力の検証
+2. **SQLインジェクション防止** - ActiveRecord保護
+3. **アクセス制御** - 適切な認証/認可
+4. **監査ログ** - 完全なイベント追跡
 
-## Deployment
+## デプロイメント
 
-### Requirements
+### 要件
 
 - Ruby 3.3+
 - Rails 8.0+
-- PostgreSQL (for JSON support)
-- Redis (for job processing)
+- PostgreSQL (JSON サポート用)
+- Redis (ジョブ処理用)
 
-### Configuration
+### 設定
 
 ```ruby
 # config/application.rb
 config.autoload_paths << Rails.root.join("app", "services")
 
-# Job queue configuration
-config.active_job.queue_adapter = :sidekiq  # or :resque
+# ジョブキュー設定
+config.active_job.queue_adapter = :sidekiq  # または :resque
 ```
 
-## Future Enhancements
+## 将来の機能拡張
 
-### Planned Features
+### 予定機能
 
-1. **Advanced AI APIs** - More game state information
-2. **Team Battles** - Multi-player team support
-3. **Tournament System** - Bracket-style competitions
-4. **Replay System** - Game replay functionality
-5. **Performance Analytics** - AI performance metrics
-6. **Map Editor** - Visual map creation tools
+1. **高度なAI API** - より多くのゲーム状態情報
+2. **チームバトル** - マルチプレイヤーチームサポート
+3. **トーナメントシステム** - ブラケット式競技
+4. **リプレイシステム** - ゲーム再生機能
+5. **パフォーマンス分析** - AIパフォーマンスメトリクス
+6. **マップエディタ** - ビジュアルマップ作成ツール
 
-### Extensibility
+### 拡張性
 
-The system is designed for easy extension:
+システムは簡単な拡張のために設計されています：
 
-- New AI API methods can be added to AIExecutionContext
-- Additional game mechanics via TurnProcessor
-- Custom event types for new features
-- Pluggable scoring systems
-- Configurable game rules
+- 新しいAI APIメソッドをAiExecutionContextに追加可能
+- TurnProcessorによる追加ゲームメカニクス
+- 新機能用のカスタムイベントタイプ
+- プラグ可能なスコアリングシステム
+- 設定可能なゲームルール
 
-## Troubleshooting
+## トラブルシューティング
 
-### Common Issues
+### よくある問題
 
-1. **AI Timeout** - Check code complexity and loops
-2. **Invalid Movement** - Verify map boundaries and obstacles
-3. **Missing Events** - Check event logging in TurnProcessor
-4. **Job Failures** - Monitor job queue and error logs
+1. **AIタイムアウト** - コードの複雑さとループをチェック
+2. **無効な移動** - マップ境界と障害物を確認
+3. **イベント欠損** - TurnProcessorのイベントログを確認
+4. **ジョブ失敗** - ジョブキューとエラーログを監視
 
-### Debug Tools
+### デバッグツール
 
 ```ruby
-# Enable debug logging
+# デバッグログを有効化
 Rails.logger.level = Logger::DEBUG
 
-# Manual game execution
+# 手動ゲーム実行
 game_engine = GameEngine.new(game)
 game_engine.execute_battle
 
-# Check game state
+# ゲーム状態確認
 game.game_rounds.includes(:players, :enemies, game_turns: :game_events)
 ```
 
-## Conclusion
+## 結論
 
-The Smalruby Koshien game logic implementation provides a robust, secure, and scalable foundation for AI programming competitions. The architecture supports complex game mechanics while maintaining security and performance, making it suitable for educational environments and competitive programming contests.
+Smalruby甲子園ゲームロジック実装は、AIプログラミング競技のための堅牢で安全、かつ拡張可能な基盤を提供します。このアーキテクチャは、セキュリティとパフォーマンスを維持しながら複雑なゲームメカニクスをサポートし、教育環境や競技プログラミングコンテストに適しています。
