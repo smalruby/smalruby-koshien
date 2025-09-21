@@ -2,17 +2,17 @@
 preset_ais = [
   {
     name: "ゴール優先AI",
-    code: "# ゴールを最優先で目指すAI\nloop do\n  move_to_goal\nend",
+    code: File.read(Rails.root.join("db/seeds_data/player_ai_goal.rb")),
     author: "system"
   },
   {
     name: "アイテム優先AI",
-    code: "# アイテム収集を最優先にするAI\nloop do\n  collect_items\nend",
+    code: File.read(Rails.root.join("db/seeds_data/player_ai_item.rb")),
     author: "system"
   },
   {
     name: "前半アイテム後半ゴールAI",
-    code: "# 前半はアイテム、後半はゴールを目指すAI\nif turn < 25\n  collect_items\nelse\n  move_to_goal\nend",
+    code: File.read(Rails.root.join("db/seeds_data/player_ai_item_goal.rb")),
     author: "system"
   }
 ]
@@ -24,22 +24,52 @@ preset_ais.each do |ai_data|
   end
 end
 
-# プリセットマップの作成（簡単なサンプル）
-preset_maps = (1..10).map do |i|
-  {
-    name: "map#{i}",
-    description: "プリセットマップ#{i}",
-    thumbnail_url: "https://koshien.smalruby.app/maps/map#{i}_thumb.png",
-    map_data: Array.new(10) { Array.new(10) { rand(3) } }, # 10x10のランダムマップ
-    map_height: Array.new(10) { Array.new(10) { 0 } },     # 高さ情報
-    goal_position: {x: 9, y: 9}                          # ゴール位置
-  }
+# プリセットマップの作成（2024サンプルマップから）
+def load_csv_map(file_path)
+  File.readlines(file_path).map do |line|
+    line.strip.split(",").map(&:to_i)
+  end
+end
+
+def find_goal_position(players_data)
+  players_data.each_with_index do |row, y|
+    row.each_with_index do |cell, x|
+      if cell == 1
+        return {x: x, y: y}
+      end
+    end
+  end
+  {x: 16, y: 16} # デフォルト位置
+end
+
+preset_maps = []
+
+# 動的にgame_map_*ディレクトリを探索
+map_dirs = Dir.glob(Rails.root.join("db/seeds_data/game_map_*")).sort
+
+map_dirs.each do |map_dir|
+  map_number = File.basename(map_dir).match(/game_map_(\d+)/)[1].to_i
+
+  begin
+    map_data = load_csv_map("#{map_dir}/map.dat")
+    players_data = load_csv_map("#{map_dir}/players.dat")
+    goal_position = find_goal_position(players_data)
+
+    preset_maps << {
+      name: "2024サンプルマップ#{map_number}",
+      description: "2024年度コンテスト用サンプルマップ#{map_number}",
+      map_data: map_data,
+      map_height: Array.new(map_data.size) { Array.new(map_data.first.size) { 0 } },
+      goal_position: goal_position
+    }
+  rescue => e
+    puts "Warning: Could not load map #{map_number}: #{e.message}"
+  end
 end
 
 preset_maps.each do |map_data|
   GameMap.find_or_create_by!(name: map_data[:name]) do |map|
     map.description = map_data[:description]
-    map.thumbnail_url = map_data[:thumbnail_url]
     map.map_data = map_data[:map_data]
     map.map_height = map_data[:map_height]
     map.goal_position = map_data[:goal_position]
