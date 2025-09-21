@@ -44,37 +44,27 @@ end
 
 preset_maps = []
 
-(1..10).each do |i|
-  map_dir = Rails.root.join("db/seeds_data/game_map_#{format("%02d", i)}")
+# 動的にgame_map_*ディレクトリを探索
+map_dirs = Dir.glob(Rails.root.join("db/seeds_data/game_map_*")).sort
 
-  if Dir.exist?(map_dir)
-    begin
-      map_data = load_csv_map("#{map_dir}/map.dat")
-      players_data = load_csv_map("#{map_dir}/players.dat")
-      goal_position = find_goal_position(players_data)
+map_dirs.each do |map_dir|
+  map_number = File.basename(map_dir).match(/game_map_(\d+)/)[1].to_i
 
-      preset_maps << {
-        name: "2024サンプルマップ#{i}",
-        description: "2024年度コンテスト用サンプルマップ#{i}",
-        map_data: map_data,
-        map_height: Array.new(map_data.size) { Array.new(map_data.first.size) { 0 } },
-        goal_position: goal_position
-      }
-    rescue => e
-      puts "Warning: Could not load map #{i}: #{e.message}"
-    end
+  begin
+    map_data = load_csv_map("#{map_dir}/map.dat")
+    players_data = load_csv_map("#{map_dir}/players.dat")
+    goal_position = find_goal_position(players_data)
+
+    preset_maps << {
+      name: "2024サンプルマップ#{map_number}",
+      description: "2024年度コンテスト用サンプルマップ#{map_number}",
+      map_data: map_data,
+      map_height: Array.new(map_data.size) { Array.new(map_data.first.size) { 0 } },
+      goal_position: goal_position
+    }
+  rescue => e
+    puts "Warning: Could not load map #{map_number}: #{e.message}"
   end
-end
-
-# 既存のランダムマップも保持
-(1..10).each do |i|
-  preset_maps << {
-    name: "ランダムマップ#{i}",
-    description: "プリセットランダムマップ#{i}",
-    map_data: Array.new(10) { Array.new(10) { rand(3) } },
-    map_height: Array.new(10) { Array.new(10) { 0 } },
-    goal_position: {x: 9, y: 9}
-  }
 end
 
 preset_maps.each do |map_data|
