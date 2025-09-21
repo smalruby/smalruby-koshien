@@ -104,7 +104,11 @@ class AiEngine
       binding_context = create_clean_binding
 
       # Execute the AI code in the secured context
+      # standard:disable Security/Eval
+      # rubocop:disable Security/Eval
       result = eval(ai_code, binding_context)
+      # rubocop:enable Security/Eval
+      # standard:enable Security/Eval
 
       # Return the collected actions or result
       @actions.any? ? {actions: @actions} : (result || {action: {type: "wait"}})
