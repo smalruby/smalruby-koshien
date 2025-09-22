@@ -52,73 +52,16 @@ class GameLogicDebugger
   def setup_test_data
     puts "\n🔧 Setting up test data..."
 
-    # Create sample map (similar to map_01) with unique name
-    timestamp = Time.current.strftime("%Y%m%d_%H%M%S_%L")
-    @game_map = GameMap.create!(
-      name: "Debug Test Map #{timestamp}",
-      description: "Debug test map based on sample map 01",
-      map_data: [
-        [0, 0, 0, 1, 0, 0, 0],
-        [0, 1, 0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0],
-        [1, 0, 0, 3, 0, 0, 1],
-        [0, 0, 0, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0, 1, 0],
-        [0, 0, 0, 1, 0, 0, 0]
-      ],
-      map_height: Array.new(7) { Array.new(7, 0) },
-      goal_position: {"x" => 3, "y" => 3}
-    )
+    # Use preset GameMap (2024サンプルマップ1 which corresponds to game_map_01)
+    @game_map = GameMap.find_by(name: "2024サンプルマップ1")
+    raise "Preset GameMap '2024サンプルマップ1' not found" unless @game_map
 
-    # Create preset AIs with different strategies
-    @first_player_ai = PlayerAi.create!(
-      name: "Debug Test AI 1 - Goal Seeker #{timestamp}",
-      author: "Debug Script",
-      code: <<~RUBY
-        # Goal-seeking AI using available methods
-        my_pos = get_my_position
-        goal_pos = get_goal_position
+    # Use preset PlayerAIs (system AIs that use koshien.rb API)
+    @first_player_ai = PlayerAi.find_by(name: "ゴール優先AI", author: "system")
+    raise "Preset PlayerAI 'ゴール優先AI' not found" unless @first_player_ai
 
-        if goal_pos.nil?
-          # If no goal found, move right
-          move_right
-        else
-          # Calculate direction to goal
-          if my_pos["x"] < goal_pos["x"]
-            move_right
-          elsif my_pos["x"] > goal_pos["x"]
-            move_left
-          elsif my_pos["y"] < goal_pos["y"]
-            move_down
-          elsif my_pos["y"] > goal_pos["y"]
-            move_up
-          else
-            # At goal, just wait
-            wait
-          end
-        end
-      RUBY
-    )
-
-    @second_player_ai = PlayerAi.create!(
-      name: "Debug Test AI 2 - Explorer #{timestamp}",
-      author: "Debug Script",
-      code: <<~RUBY
-        # Explorer AI with simple pattern
-        turn = get_turn_number
-
-        case turn % 4
-        when 0
-          move_right
-        when 1
-          move_down
-        when 2
-          move_left
-        when 3
-          move_up
-        end
-      RUBY
-    )
+    @second_player_ai = PlayerAi.find_by(name: "アイテム優先AI", author: "system")
+    raise "Preset PlayerAI 'アイテム優先AI' not found" unless @second_player_ai
 
     # Create game
     @game = Game.create!(
@@ -129,9 +72,9 @@ class GameLogicDebugger
       battle_url: "https://debug-test.example.com/#{SecureRandom.hex(8)}"
     )
 
-    puts "   ✓ Created game map: #{@game_map.name}"
-    puts "   ✓ Created AI 1: #{@first_player_ai.name}"
-    puts "   ✓ Created AI 2: #{@second_player_ai.name}"
+    puts "   ✓ Using game map: #{@game_map.name} (ID: #{@game_map.id})"
+    puts "   ✓ Using AI 1: #{@first_player_ai.name}"
+    puts "   ✓ Using AI 2: #{@second_player_ai.name}"
     puts "   ✓ Created game: #{@game.id}"
   end
 
@@ -140,6 +83,8 @@ class GameLogicDebugger
     puts "   Game ID: #{@game.id}"
     puts "   Map: #{@game_map.name} (#{@game_map.map_data.size}x#{@game_map.map_data[0].size})"
     puts "   Goal position: #{@game_map.goal_position}"
+    puts "   AI 1: #{@first_player_ai.name}"
+    puts "   AI 2: #{@second_player_ai.name}"
 
     # Initialize game engine
     game_engine = GameEngine.new(@game)
