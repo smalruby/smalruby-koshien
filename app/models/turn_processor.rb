@@ -44,7 +44,11 @@ class TurnProcessor
     actions.each do |action|
       case action[:type]
       when "move"
-        process_movement(player, action[:direction])
+        if action[:direction]
+          process_movement(player, action[:direction])
+        elsif action[:target_x] && action[:target_y]
+          process_move_to_target(player, action[:target_x], action[:target_y])
+        end
       when "use_item"
         process_item_usage(player, action[:item])
       when "wait"
@@ -91,6 +95,50 @@ class TurnProcessor
       })
 
       Rails.logger.debug "Player #{player.id} movement blocked to (#{new_x},#{new_y})"
+    end
+  end
+
+  def process_move_to_target(player, target_x, target_y)
+    old_x, old_y = player.position_x, player.position_y
+
+    # Calculate direction to target (only allow one step movement)
+    dx = target_x - old_x
+    dy = target_y - old_y
+
+    # Normalize to single step
+    if dx.abs > dy.abs
+      new_x = old_x + ((dx > 0) ? 1 : -1)
+      new_y = old_y
+    elsif dy != 0
+      new_x = old_x
+      new_y = old_y + ((dy > 0) ? 1 : -1)
+    else
+      # Already at target
+      new_x = old_x
+      new_y = old_y
+    end
+
+    # Check if movement is valid
+    if valid_movement?(new_x, new_y)
+      # Update player position
+      player.move_to(new_x, new_y)
+      player.save!
+
+      create_game_event(player, "MOVE", {
+        from: {x: old_x, y: old_y},
+        to: {x: new_x, y: new_y},
+        target: {x: target_x, y: target_y}
+      })
+
+      Rails.logger.debug "Player #{player.id} moved from (#{old_x},#{old_y}) to (#{new_x},#{new_y}) toward target (#{target_x},#{target_y})"
+    else
+      # Movement blocked
+      create_game_event(player, "MOVE_BLOCKED", {
+        attempted: {x: new_x, y: new_y},
+        target: {x: target_x, y: target_y}
+      })
+
+      Rails.logger.debug "Player #{player.id} movement blocked from (#{old_x},#{old_y}) to (#{new_x},#{new_y})"
     end
   end
 

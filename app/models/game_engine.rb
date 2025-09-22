@@ -180,31 +180,47 @@ class GameEngine
   def execute_player_ais(players, turn)
     ai_engine = AiEngine.new
 
-    players.map do |player|
-      # Execute player AI code
-      ai_result = ai_engine.execute_ai(
-        player: player,
-        game_state: build_game_state(player),
-        turn: turn
-      )
+    # Execute AIs using turn-over based execution
+    execute_ais_with_turn_over(players, ai_engine, turn)
+  end
 
-      {
-        player_id: player.id,
-        success: true,
-        result: ai_result
-      }
-    rescue => e
-      Rails.logger.error "AI execution failed for player #{player.id}: #{e.message}"
+  # New turn-over based AI execution model
+  def execute_ais_with_turn_over(players, ai_engine, turn)
+    ai_results = []
 
-      # Mark player as timeout
-      player.update!(status: :timeout)
+    players.each_with_index do |player, player_index|
+      Rails.logger.debug "Starting AI execution for player #{player.id} (#{player_index})"
 
-      {
-        player_id: player.id,
-        success: false,
-        error: e.message
-      }
+      begin
+        # Execute AI until turn_over is called
+        ai_result = ai_engine.execute_ai_with_turn_over(
+          player: player,
+          game_state: build_game_state(player),
+          turn: turn
+        )
+
+        ai_results << {
+          player_id: player.id,
+          success: true,
+          result: ai_result
+        }
+
+        Rails.logger.debug "AI execution completed for player #{player.id}"
+      rescue => e
+        Rails.logger.error "AI execution failed for player #{player.id}: #{e.message}"
+
+        # Mark player as timeout
+        player.update!(status: :timeout)
+
+        ai_results << {
+          player_id: player.id,
+          success: false,
+          error: e.message
+        }
+      end
     end
+
+    ai_results
   end
 
   def process_turn_actions(players, ai_results, turn)

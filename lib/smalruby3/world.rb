@@ -1,6 +1,9 @@
 require "singleton"
 
 module Smalruby3
+  class ExistStage < StandardError; end
+  class ExistSprite < StandardError; end
+
   class World
     include Singleton
 
