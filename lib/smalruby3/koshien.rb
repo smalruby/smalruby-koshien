@@ -1,15 +1,11 @@
 require "singleton"
-require_relative "ai_lib"
 
 module Smalruby3
   # スモウルビー甲子園のAIを作るためのクラス
   class Koshien
     include Singleton
 
-    attr_accessor :ai_lib # :nodoc:
-
     def initialize
-      @ai_lib = AILib.instance
     end
 
     # --------------------------------------------------------------------------------
@@ -40,8 +36,6 @@ module Smalruby3
     # - 2回目以降は無視されます。
     def connect_game(name:)
       log(%(プレイヤー名を設定します: name="#{name}"))
-      ai_lib.player_name = name
-      ai_lib.connectGame
     end
 
     # :call-seq:
@@ -73,7 +67,8 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def get_map_area(position)
-      ai_lib.get_map_area(*Position.new(position).to_a)
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -103,7 +98,8 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def move_to(position)
-      ai_lib.move_to(*Position.new(position).to_a)
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -136,7 +132,8 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def set_dynamite(position)
-      ai_lib.set_dynamite(*Position.new(position).to_a)
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -166,7 +163,8 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def set_bomb(position)
-      ai_lib.set_bomb(*Position.new(position).to_a)
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -187,7 +185,8 @@ module Smalruby3
     #
     # - (実行するとターンが終了するので) 1ターンに1回のみ
     def turn_over
-      ai_lib.turn_over
+      # Stub implementation - returns nil
+      nil
     end
 
     # --------------------------------------------------------------------------------
@@ -271,13 +270,8 @@ module Smalruby3
     #     ```
     def calc_route(result:, src: player, dst: goal, except_cells: nil)
       result ||= List.new
-      except_cells ||= []
 
-      route = ai_lib.calc_route(
-        src: Position.new(src).to_a,
-        dst: Position.new(dst).to_a,
-        except_cells: except_cells.map { |x| Position.new(x).to_a }
-      )
+      route = []
       result.replace(route.map { |x| Position.new(x).to_s })
       result
     end
@@ -301,7 +295,8 @@ module Smalruby3
     # - マップ情報を取得していない座標を指定した場合は、 `-1` が返されます。
     # - マップエリア外を指定した場合は、 `nil` が返されます。
     def map(position)
-      ai_lib.map(*Position.new(position).to_a)
+      # Stub implementation - returns -1 for unknown
+      -1
     end
 
     # :call-seq:
@@ -347,7 +342,7 @@ module Smalruby3
     #     ```
     # - さらに、そこからある座標のマップ情報を参照するには map_from メソッドを使います。
     def map_all
-      Map.new(ai_lib.map_all).to_s
+      Map.new("").to_s
     end
 
     # :call-seq:
@@ -408,19 +403,7 @@ module Smalruby3
     def locate_objects(result:, sq_size: 5, cent: player, objects: "ABCD")
       result ||= List.new
 
-      objects = objects.to_s.gsub("-1", "-").scan(/./).map { |x|
-        case x
-        when "-"
-          -1
-        when /[0-5]/
-          x.to_i
-        else
-          x
-        end
-      }
-      object_positions = ai_lib.locate_objects(
-        sq_size: sq_size, cent: Position.new(cent).to_a, objects: objects
-      )
+      object_positions = []
       result.replace(object_positions.map { |x| Position.new(x).to_s })
       result
     end
@@ -481,9 +464,8 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player
-      return nil unless ai_lib.other_player_pos
-
-      position(*ai_lib.other_player_pos)
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -502,9 +484,8 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_x
-      return nil unless ai_lib.other_player_pos
-
-      ai_lib.other_player_pos.first
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -523,9 +504,8 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_y
-      return nil unless ai_lib.other_player_pos
-
-      ai_lib.other_player_pos.last
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -542,9 +522,8 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy
-      return nil unless ai_lib.enemy_pos
-
-      position(ai_lib.enemy_pos["x"], ai_lib.enemy_pos["y"])
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -561,8 +540,8 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_x
-      return unless ai_lib.enemy_pos
-      ai_lib.enemy_pos["x"]
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -579,8 +558,8 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_y
-      return unless ai_lib.enemy_pos
-      ai_lib.enemy_pos["y"]
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -596,9 +575,8 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal
-      return nil unless ai_lib.goal
-
-      position(*ai_lib.goal)
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -614,9 +592,8 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_x
-      return nil unless ai_lib.goal
-
-      ai_lib.goal.first
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -632,8 +609,8 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_y
-      return unless ai_lib.goal
-      ai_lib.goal.last
+      # Stub implementation - returns nil
+      nil
     end
 
     # :call-seq:
@@ -649,7 +626,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player
-      position(ai_lib.x, ai_lib.y)
+      position(0, 0)
     end
 
     # :call-seq:
@@ -665,7 +642,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player_x
-      ai_lib.x
+      0
     end
 
     # :call-seq:
@@ -681,7 +658,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player_y
-      ai_lib.y
+      0
     end
 
     # :call-seq:
@@ -764,13 +741,15 @@ module Smalruby3
     #
     # - AI開発時の動作確認に使うことを想定しています。
     def set_message(message)
-      ai_lib.set_message(message)
+      # Stub implementation - just log the message
+      log("Message: #{message}")
     end
 
     private
 
     def log(message)
-      ai_lib.logger.info(message)
+      # Simple logging - could be expanded if needed
+      puts message
     end
   end
 end
