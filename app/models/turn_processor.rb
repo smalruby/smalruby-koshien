@@ -358,7 +358,7 @@ class TurnProcessor
         position: {x: player.position_x, y: player.position_y}
       })
 
-      Rails.logger.debug "Enemy #{enemy.id} attacked player #{player.id} for #{damage} damage"
+      Rails.logger.debug "Enemy #{enemy.id} attacked player #{player.id}"
     end
   end
 

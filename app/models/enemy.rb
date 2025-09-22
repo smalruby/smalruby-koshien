@@ -38,11 +38,11 @@ class Enemy < ApplicationRecord
   end
 
   def angry?
-    angry?
+    state == "angry"
   end
 
   def kill?
-    kill?
+    state == "kill"
   end
 
   def normal?
