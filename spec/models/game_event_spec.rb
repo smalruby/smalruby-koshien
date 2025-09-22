@@ -110,7 +110,19 @@ RSpec.describe GameEvent, type: :model do
         GameEvent::PLAYER_MOVE,
         GameEvent::ITEM_COLLECT,
         GameEvent::ENEMY_ENCOUNTER,
-        GameEvent::GAME_END
+        GameEvent::GAME_END,
+        GameEvent::AI_TIMEOUT,
+        GameEvent::WAIT,
+        GameEvent::MOVE,
+        GameEvent::MOVE_BLOCKED,
+        GameEvent::USE_DYNAMITE,
+        GameEvent::USE_DYNAMITE_FAILED,
+        GameEvent::USE_BOMB,
+        GameEvent::USE_BOMB_FAILED,
+        GameEvent::PLAYER_COLLISION,
+        GameEvent::COLLECT_ITEM,
+        GameEvent::ENEMY_ATTACK,
+        GameEvent::WALK_BONUS
       ]
       expect(GameEvent::EVENT_TYPES).to eq(expected_types)
     end

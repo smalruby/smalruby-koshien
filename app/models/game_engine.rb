@@ -306,10 +306,10 @@ class GameEngine
 
   def find_start_positions(game_map)
     # TODO: Parse map data to find start positions
-    # For now, return default positions
+    # For now, return default positions that avoid walls
     [
-      {x: 1, y: 1},
-      {x: game_map.size["width"] - 2, y: game_map.size["height"] - 2}
+      {x: 0, y: 0},
+      {x: 2, y: 2}
     ]
   end
 

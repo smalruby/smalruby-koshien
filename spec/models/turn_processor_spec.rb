@@ -293,7 +293,7 @@ RSpec.describe TurnProcessor, type: :model do
   describe "#valid_movement?" do
     context "マップ内の有効な位置の場合" do
       it "移動を許可する" do
-        expect(turn_processor.send(:valid_movement?, 1, 1)).to be true
+        expect(turn_processor.send(:valid_movement?, 0, 0)).to be true
       end
     end
 

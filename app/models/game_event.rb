@@ -3,7 +3,19 @@ class GameEvent < ApplicationRecord
   belongs_to :player, optional: true
 
   validates :event_type, presence: true
-  validates :event_data, presence: true
+  validate :event_data_format
+
+  private
+
+  def event_data_format
+    if event_data.nil?
+      errors.add(:event_data, "can't be blank")
+    elsif !event_data.is_a?(Hash)
+      errors.add(:event_data, "must be a hash")
+    end
+  end
+
+  public
 
   # イベントタイプの定数定義
   PLAYER_MOVE = "player_move".freeze
