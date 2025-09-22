@@ -34,19 +34,23 @@ class GameLogicDebugger
   private
 
   def cleanup_test_data
-    puts "\n🧹 Cleaning up test data..."
-    # Delete in correct order to avoid foreign key constraints
-    games_to_delete = Game.where("battle_url LIKE ?", "%debug-test%")
-    games_to_delete.each do |game|
-      # Delete associated game rounds (cascades to players, enemies, turns, events)
-      game.game_rounds.destroy_all
-      game.destroy
-    end
+    puts "\n🧹 Checking for existing test data..."
 
-    PlayerAi.where("name LIKE ?", "%Debug Test%").destroy_all
-    GameMap.where("name LIKE ?", "%Debug Test%").destroy_all
-  rescue => e
-    puts "   ⚠️  Cleanup warning: #{e.message}"
+    begin
+      # Count existing debug games but don't delete them
+      existing_games = Game.where("battle_url LIKE ?", "%debug-test%")
+      puts "   Found #{existing_games.count} existing debug games in database"
+
+      if existing_games.count > 0
+        puts "   ℹ️  Note: Previous debug games exist but will not be auto-deleted"
+        puts "   ℹ️  To manually clean: rails runner 'Game.where(\"battle_url LIKE ?\", \"%debug-test%\").destroy_all'"
+        puts "   ℹ️  This avoids foreign key constraint issues during automated testing"
+      else
+        puts "   ✓ No existing debug games found"
+      end
+    rescue => e
+      puts "   ⚠️  Database check error: #{e.message}"
+    end
   end
 
   def setup_test_data
@@ -137,7 +141,6 @@ class GameLogicDebugger
         puts "   👤 #{ai_name}:"
         puts "      Position: (#{player.position_x}, #{player.position_y})"
         puts "      Score: #{player.score}"
-        puts "      HP: #{player.hp}"
         puts "      Status: #{player.status}"
         puts "      Level: #{player.character_level}"
         puts "      Dynamite: #{player.dynamite_left}/#{GameConstants::N_DYNAMITE}"

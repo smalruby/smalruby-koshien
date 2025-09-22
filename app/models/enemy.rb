@@ -5,8 +5,6 @@ class Enemy < ApplicationRecord
 
   validates :position_x, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :position_y, presence: true, numericality: {greater_than_or_equal_to: 0}
-  validates :hp, presence: true, numericality: {greater_than_or_equal_to: 0}
-  validates :attack_power, presence: true, numericality: {greater_than_or_equal_to: 0}
 
   enum :state, {
     normal_state: 0,
@@ -27,13 +25,6 @@ class Enemy < ApplicationRecord
     {x: position_x, y: position_y}
   end
 
-  def alive?
-    hp > 0
-  end
-
-  def defeated?
-    hp <= 0
-  end
 
   def api_info
     {
@@ -43,9 +34,7 @@ class Enemy < ApplicationRecord
       prev_y: previous_position_y,
       state: state,
       kill_player: enemy_kill,
-      killed: killed,
-      hp: hp,
-      attack_power: attack_power
+      killed: killed
     }
   end
 
@@ -59,6 +48,10 @@ class Enemy < ApplicationRecord
 
   def normal?
     normal_state?
+  end
+
+  def killed?
+    killed
   end
 
   def can_attack?(player_id)

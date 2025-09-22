@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_21_235307) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_22_085908) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -43,8 +43,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_21_235307) do
     t.integer "game_round_id", null: false
     t.integer "position_x"
     t.integer "position_y"
-    t.integer "hp"
-    t.integer "attack_power"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "state", default: 0, null: false
@@ -142,7 +140,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_21_235307) do
     t.integer "bomb_left", default: 2, null: false
     t.integer "walk_bonus_counter", default: 0, null: false
     t.json "acquired_positive_items", default: [nil, 0, 0, 0, 0, 0]
-    t.integer "hp", default: 100, null: false
     t.index ["game_round_id"], name: "index_players_on_game_round_id"
     t.index ["player_ai_id"], name: "index_players_on_player_ai_id"
   end

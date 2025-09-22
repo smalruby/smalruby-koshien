@@ -319,7 +319,7 @@ class TurnProcessor
     players = game_round.players.where(status: :playing)
 
     enemies.each do |enemy|
-      next unless enemy.alive?
+      next if enemy.killed?
 
       players.each do |player|
         if enemy_player_interaction?(enemy, player)
@@ -345,20 +345,12 @@ class TurnProcessor
 
     # Enemy attacks player
     if enemy.can_attack?(player_index)
-      damage = enemy.attack_power
-      player.hp = [player.hp - damage, 0].max
       player.score = [player.score + ENEMY_DISCOUNT, 0].max
-
-      if player.hp <= 0
-        player.status = :completed
-      end
-
+      player.status = :completed
       player.save!
 
       create_game_event(player, "ENEMY_ATTACK", {
         enemy_id: enemy.id,
-        damage: damage,
-        remaining_hp: player.hp,
         position: {x: player.position_x, y: player.position_y}
       })
 

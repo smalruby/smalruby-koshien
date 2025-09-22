@@ -112,7 +112,6 @@ class GameEngine
         previous_position_x: position[:x],
         previous_position_y: position[:y],
         score: 0,
-        hp: 100,
         character_level: 1,
         dynamite_left: N_DYNAMITE,
         bomb_left: N_BOMB,
@@ -133,8 +132,6 @@ class GameEngine
         position_y: position[:y],
         previous_position_x: position[:x],
         previous_position_y: position[:y],
-        hp: 100,
-        attack_power: 10,
         state: :normal_state,
         enemy_kill: :no_kill
       )
@@ -232,7 +229,7 @@ class GameEngine
     # Enemy AI logic will be implemented here
     # For now, basic enemy behavior
     @current_round.enemies.each do |enemy|
-      next unless enemy.alive?
+      next if enemy.killed?
 
       # Simple enemy movement logic
       # TODO: Implement proper enemy AI
