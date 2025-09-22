@@ -1,5 +1,5 @@
 require "singleton"
-require_relative "../ai_lib"
+require_relative "ai_lib"
 
 module Smalruby3
   # スモウルビー甲子園のAIを作るためのクラス
