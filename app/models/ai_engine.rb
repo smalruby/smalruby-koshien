@@ -93,6 +93,10 @@ class AiEngine
 
   # Execute AI code with turn_over handling - simple approach
   def execute_with_turn_over_handling(ai_code, context)
+    Rails.logger.info "Starting AI execution with turn_over handling"
+    Rails.logger.info "AI code length: #{ai_code.length} characters"
+    Rails.logger.info "AI code first 200 chars: #{ai_code[0..200]}..."
+
     result = nil
     turn_over_count = 0
     max_turn_overs = 50  # Prevent infinite turn_over calls
@@ -122,19 +126,11 @@ class AiEngine
           iteration_actions = context.get_and_clear_iteration_actions
           collected_actions.concat(iteration_actions)
 
-          # Check if we have a move action in collected actions
-          move_actions = collected_actions.select { |action| action[:type] == "move" }
-          if move_actions.any?
-            # Found a move action, this completes the turn
-            result = {actions: collected_actions}
-            break
-          elsif iteration_actions.any?
-            # Had other actions (search, etc.), continue
-            Rails.logger.debug "AI performed non-move actions: #{iteration_actions.map { |a| a[:type] }}, continuing..."
-            # Continue to next turn_over
+          # Turn_over was called, this ends the turn
+          result = if collected_actions.any?
+            {actions: collected_actions}
           else
-            # No actions this iteration, continue
-            Rails.logger.debug "AI called turn_over with no actions, continuing..."
+            {action: {type: "wait"}}  # No actions, default to wait
           end
         else
           # AI code completed without calling turn_over
@@ -146,8 +142,8 @@ class AiEngine
           else
             turn_result || {action: {type: "wait"}}
           end
-          break
         end
+        break
       end
     end
 
@@ -243,7 +239,12 @@ class AiEngine
       # Remove require statements that are not needed in AI context
       ai_code = ai_code.gsub(/require\s+["']smalruby3["']/, "")
 
+      # Replace Stage.new with our Stage method call
+      ai_code = ai_code.gsub("Stage.new", "Stage")
+      ai_code = ai_code.gsub("Sprite.new", "Sprite")
+
       Rails.logger.debug "Executing AI code in isolated context"
+      Rails.logger.debug "Modified AI code: #{ai_code[0..300]}..."
 
       # standard:disable Security/Eval
       # rubocop:disable Security/Eval
@@ -366,10 +367,12 @@ class AiEngine
 
     def Sprite(*args, &block)
       # Don't actually create sprites in AI context to avoid conflicts
-      Rails.logger.debug "AI attempting to create Sprite, ignoring"
+      Rails.logger.debug "AI attempting to create Sprite, executing block"
       if block
         # Execute the block in current context to capture method definitions
-        instance_eval(&block)
+        Rails.logger.debug "Executing Sprite block"
+        result = instance_eval(&block)
+        Rails.logger.debug "Sprite block executed, result: #{result.inspect}"
       end
       nil
     end
@@ -382,8 +385,6 @@ class AiEngine
     def koshien
       @koshien ||= MockKoshien.new(self)
     end
-
-    private
 
     def add_action(action)
       # Validate move restrictions: only one move per turn
@@ -479,12 +480,18 @@ class AiEngine
       end
 
       def move_to(position)
+        Rails.logger.debug "AI attempting to move to: #{position.inspect}"
         if position
           # Extract coordinates from position string like "3:4"
           if position.is_a?(String) && position.include?(":")
             x, y = position.split(":").map(&:to_i)
+            Rails.logger.debug "Moving to coordinates: (#{x}, #{y})"
             @context.add_action({type: "move", target_x: x, target_y: y})
+          else
+            Rails.logger.debug "Invalid position format: #{position}"
           end
+        else
+          Rails.logger.debug "Position is nil, no move action"
         end
         nil
       end
@@ -498,6 +505,8 @@ class AiEngine
         # Simple pathfinding stub - just return direct path
         src_pos = parse_position(src || player)
         dst_pos = parse_position(dst || goal)
+
+        Rails.logger.debug "Calculating route from #{src_pos} to #{dst_pos}"
 
         if src_pos && dst_pos
           # Simple direct path
@@ -520,8 +529,10 @@ class AiEngine
           path << format_position({x: next_x, y: next_y})
           path << format_position(dst_pos)
 
+          Rails.logger.debug "Generated path: #{path}"
           result&.replace(path)
         elsif result
+          Rails.logger.debug "Could not generate path, returning empty"
           result.replace([])
         end
 

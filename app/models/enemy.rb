@@ -25,7 +25,6 @@ class Enemy < ApplicationRecord
     {x: position_x, y: position_y}
   end
 
-
   def api_info
     {
       x: position_x,

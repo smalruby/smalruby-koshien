@@ -204,7 +204,8 @@ class GameEngine
 
         Rails.logger.debug "AI execution completed for player #{player.id}"
       rescue => e
-        Rails.logger.error "AI execution failed for player #{player.id}: #{e.message}"
+        Rails.logger.error "AI execution failed for player #{player.id}: #{e.class} - #{e.message}"
+        Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
 
         # Mark player as timeout
         player.update!(status: :timeout)

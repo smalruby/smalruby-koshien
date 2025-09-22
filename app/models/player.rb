@@ -122,7 +122,6 @@ class Player < ApplicationRecord
     [position_x, position_y] == [enemy_info[:x].to_i, enemy_info[:y].to_i]
   end
 
-
   def api_info
     {
       id: id,

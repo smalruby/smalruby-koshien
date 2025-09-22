@@ -40,6 +40,7 @@ class TurnProcessor
 
     # Extract actions from AI result
     actions = extract_actions(ai_result)
+    Rails.logger.debug "Player #{player.id} actions: #{actions.inspect}"
 
     actions.each do |action|
       case action[:type]
@@ -54,6 +55,9 @@ class TurnProcessor
       when "wait"
         # Player chooses to wait, no action needed
         create_game_event(player, "WAIT")
+      when "explore"
+        # Player is exploring map area, create exploration event
+        create_game_event(player, "EXPLORE", {target: action[:target]})
       else
         Rails.logger.warn "Unknown action type: #{action[:type]}"
       end
