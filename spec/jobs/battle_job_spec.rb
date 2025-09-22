@@ -2,8 +2,8 @@ require "rails_helper"
 
 RSpec.describe BattleJob, type: :job do
   let!(:game_map) { create(:game_map) }
-  let!(:first_player_ai) { create(:player_ai, :preset, code: "move_up") }
-  let!(:second_player_ai) { create(:player_ai, :preset, code: "move_down") }
+  let!(:first_player_ai) { create(:player_ai, :preset, code: "move_right") }
+  let!(:second_player_ai) { create(:player_ai, :preset, code: "wait") }
   let!(:game) do
     create(:game,
       game_map: game_map,

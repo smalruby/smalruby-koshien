@@ -288,14 +288,21 @@ class TurnProcessor
   end
 
   def handle_enemy_player_interaction(enemy, player)
+    # Determine player index (0 for first player, 1 for second player)
+    player_index = if player.player_ai == game_round.game.first_player_ai
+      0
+    else
+      1
+    end
+
     # Enemy attacks player
-    if enemy.can_attack?(player.id)
+    if enemy.can_attack?(player_index)
       damage = enemy.attack_power
-      player.hp -= damage
-      player.score += ENEMY_DISCOUNT
+      player.hp = [player.hp - damage, 0].max
+      player.score = [player.score + ENEMY_DISCOUNT, 0].max
 
       if player.hp <= 0
-        player.update!(status: :completed)
+        player.status = :completed
       end
 
       player.save!

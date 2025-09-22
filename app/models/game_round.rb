@@ -5,9 +5,23 @@ class GameRound < ApplicationRecord
   has_many :enemies, dependent: :destroy
   has_many :game_turns, dependent: :destroy
 
+  serialize :item_locations, coder: JSON
+
   validates :round_number, presence: true, uniqueness: {scope: :game_id}
   validates :status, presence: true
-  validates :item_locations, presence: true
+  validate :item_locations_format
+
+  private
+
+  def item_locations_format
+    if item_locations.nil?
+      errors.add(:item_locations, "can't be blank")
+    elsif !item_locations.is_a?(Hash)
+      errors.add(:item_locations, "must be a hash")
+    end
+  end
+
+  public
 
   enum :status, {
     preparing: 0,

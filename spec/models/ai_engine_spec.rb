@@ -3,39 +3,39 @@ require "rails_helper"
 RSpec.describe AiEngine, type: :model do
   let(:ai_engine) { described_class.new }
   let!(:game_map) { create(:game_map) }
-  let!(:player_ai) { create(:player_ai, code: ai_code) }
-  let!(:game) { create(:game, game_map: game_map, first_player_ai: player_ai, second_player_ai: player_ai) }
-  let!(:round) { game.game_rounds.create!(round_number: 1, status: :in_progress, item_locations: {}) }
-  let!(:turn) { round.game_turns.create!(turn_number: 1, turn_finished: false) }
-  let!(:player) do
-    round.players.create!(
-      player_ai: player_ai,
-      position_x: 1,
-      position_y: 1,
-      previous_position_x: 1,
-      previous_position_y: 1,
-      score: 0,
-      hp: 100,
-      character_level: 1,
-      dynamite_left: 2,
-      bomb_left: 2,
-      walk_bonus_counter: 0,
-      acquired_positive_items: [0, 0, 0, 0, 0, 0],
-      status: :playing
-    )
-  end
-  let(:game_state) do
-    {
-      player: player.api_info,
-      enemies: [],
-      map: game_map.map_data,
-      items: {},
-      turn: 1,
-      round: 1
-    }
-  end
 
   describe "#execute_ai" do
+    let!(:player_ai) { create(:player_ai, code: ai_code) }
+    let!(:game) { create(:game, game_map: game_map, first_player_ai: player_ai, second_player_ai: player_ai) }
+    let!(:round) { game.game_rounds.create!(round_number: 1, status: :in_progress, item_locations: {}) }
+    let!(:turn) { round.game_turns.create!(turn_number: 1, turn_finished: false) }
+    let!(:player) do
+      round.players.create!(
+        player_ai: player_ai,
+        position_x: 1,
+        position_y: 1,
+        previous_position_x: 1,
+        previous_position_y: 1,
+        score: 0,
+        hp: 100,
+        character_level: 1,
+        dynamite_left: 2,
+        bomb_left: 2,
+        walk_bonus_counter: 0,
+        acquired_positive_items: [0, 0, 0, 0, 0, 0],
+        status: :playing
+      )
+    end
+    let(:game_state) do
+      {
+        player: player.api_info,
+        enemies: [],
+        map: game_map.map_data,
+        items: {},
+        turn: 1,
+        round: 1
+      }
+    end
     context "正常なAIコードの場合" do
       let(:ai_code) { "move_up" }
 
@@ -136,41 +136,74 @@ RSpec.describe AiEngine, type: :model do
   end
 
   describe "#valid_action?" do
+    let(:test_ai_engine) { described_class.new }
+
     it "有効な移動アクションを認識する" do
       action = {type: "move", direction: "up"}
-      expect(ai_engine.send(:valid_action?, action)).to be true
+      expect(test_ai_engine.send(:valid_action?, action)).to be true
     end
 
     it "有効なアイテム使用アクションを認識する" do
       action = {type: "use_item", item: "dynamite"}
-      expect(ai_engine.send(:valid_action?, action)).to be true
+      expect(test_ai_engine.send(:valid_action?, action)).to be true
     end
 
     it "有効なwaitアクションを認識する" do
       action = {type: "wait"}
-      expect(ai_engine.send(:valid_action?, action)).to be true
+      expect(test_ai_engine.send(:valid_action?, action)).to be true
     end
 
     it "無効なアクションを拒否する" do
       action = {type: "invalid_action"}
-      expect(ai_engine.send(:valid_action?, action)).to be false
+      expect(test_ai_engine.send(:valid_action?, action)).to be false
     end
 
     it "不正な形式のアクションを拒否する" do
-      expect(ai_engine.send(:valid_action?, "invalid")).to be false
-      expect(ai_engine.send(:valid_action?, {direction: "up"})).to be false
+      expect(test_ai_engine.send(:valid_action?, "invalid")).to be false
+      expect(test_ai_engine.send(:valid_action?, {direction: "up"})).to be false
     end
   end
 
   describe "AiExecutionContext" do
-    let(:context) { AiEngine::AiExecutionContext.new(player, game_state, turn) }
+    let!(:test_player_ai) { create(:player_ai, code: "test") }
+    let!(:test_game) { create(:game, game_map: game_map, first_player_ai: test_player_ai, second_player_ai: test_player_ai) }
+    let!(:test_round) { test_game.game_rounds.create!(round_number: 1, status: :in_progress, item_locations: {}) }
+    let!(:test_turn) { test_round.game_turns.create!(turn_number: 1, turn_finished: false) }
+    let!(:test_player) do
+      test_round.players.create!(
+        player_ai: test_player_ai,
+        position_x: 1,
+        position_y: 1,
+        previous_position_x: 1,
+        previous_position_y: 1,
+        score: 0,
+        hp: 100,
+        character_level: 1,
+        dynamite_left: 2,
+        bomb_left: 2,
+        walk_bonus_counter: 0,
+        acquired_positive_items: [0, 0, 0, 0, 0, 0],
+        status: :playing
+      )
+    end
+    let(:test_game_state) do
+      {
+        player: test_player.api_info,
+        enemies: [],
+        map: game_map.map_data,
+        items: {},
+        turn: 1,
+        round: 1
+      }
+    end
+    let(:context) { AiEngine::AiExecutionContext.new(test_player, test_game_state, test_turn) }
 
     describe "安全なAPIメソッド" do
       it "プレイヤー情報を取得できる" do
         player_info = context.get_player_info
-        expect(player_info[:id]).to eq(player.id)
-        expect(player_info[:x]).to eq(player.position_x)
-        expect(player_info[:y]).to eq(player.position_y)
+        expect(player_info[:id]).to eq(test_player.id)
+        expect(player_info[:x]).to eq(test_player.position_x)
+        expect(player_info[:y]).to eq(test_player.position_y)
       end
 
       it "敵情報を取得できる" do

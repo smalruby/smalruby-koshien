@@ -58,4 +58,9 @@ group :development, :test do
 
   # Factory Bot for test data [https://github.com/thoughtbot/factory_bot_rails]
   gem "factory_bot_rails"
+
+  # SimpleCov for code coverage analysis [https://github.com/simplecov-ruby/simplecov]
+  gem "simplecov", require: false
+  gem "simplecov-json", require: false
+  gem "simplecov-lcov", require: false
 end

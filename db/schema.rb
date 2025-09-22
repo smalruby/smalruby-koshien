@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_21_164006) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_21_235307) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -50,6 +50,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_21_164006) do
     t.integer "state", default: 0, null: false
     t.integer "enemy_kill", default: 0, null: false
     t.boolean "killed", default: false, null: false
+    t.integer "previous_position_x"
+    t.integer "previous_position_y"
     t.index ["game_round_id"], name: "index_enemies_on_game_round_id"
   end
 
@@ -59,7 +61,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_21_164006) do
     t.text "event_data"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "player_id"
+    t.datetime "occurred_at"
     t.index ["game_turn_id"], name: "index_game_events_on_game_turn_id"
+    t.index ["player_id"], name: "index_game_events_on_player_id"
   end
 
   create_table "game_maps", force: :cascade do |t|
@@ -137,6 +142,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_21_164006) do
     t.integer "bomb_left", default: 2, null: false
     t.integer "walk_bonus_counter", default: 0, null: false
     t.json "acquired_positive_items", default: [nil, 0, 0, 0, 0, 0]
+    t.integer "hp", default: 100, null: false
     t.index ["game_round_id"], name: "index_players_on_game_round_id"
     t.index ["player_ai_id"], name: "index_players_on_player_ai_id"
   end
@@ -145,6 +151,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_21_164006) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "enemies", "game_rounds"
   add_foreign_key "game_events", "game_turns"
+  add_foreign_key "game_events", "players"
   add_foreign_key "game_rounds", "games"
   add_foreign_key "game_turns", "game_rounds"
   add_foreign_key "games", "game_maps"

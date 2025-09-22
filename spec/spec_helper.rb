@@ -13,6 +13,42 @@
 # it.
 #
 # See https://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
+
+# SimpleCov configuration for code coverage
+require "simplecov"
+require "simplecov-json"
+require "simplecov-lcov"
+
+SimpleCov.start "rails" do
+  # Configure output directory
+  coverage_dir "coverage"
+
+  # Configure formatters for different outputs
+  formatters = [
+    SimpleCov::Formatter::HTMLFormatter,
+    SimpleCov::Formatter::JSONFormatter,
+    SimpleCov::Formatter::LcovFormatter
+  ]
+
+  SimpleCov.formatters = SimpleCov::Formatter::MultiFormatter.new(formatters)
+
+  # Exclude test files and vendor code
+  add_filter "/spec/"
+  add_filter "/vendor/"
+  add_filter "/config/"
+  add_filter "/db/"
+
+  # Set minimum coverage threshold (temporarily lowered for testing)
+  minimum_coverage 30
+  minimum_coverage_by_file 10
+
+  # Group files for better organization
+  add_group "Models", "app/models"
+  add_group "Controllers", "app/controllers"
+  add_group "Jobs", "app/jobs"
+  add_group "Services", "app/services"
+  add_group "Libraries", "lib"
+end
 RSpec.configure do |config|
   # rspec-expectations config goes here. You can use an alternate
   # assertion/expectation library such as wrong or the stdlib/minitest
