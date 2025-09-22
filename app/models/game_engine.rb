@@ -334,7 +334,8 @@ class GameEngine
       map: game.game_map.map_data,
       items: @current_round.item_locations,
       turn: @current_round.game_turns.count + 1,
-      round: @current_round.round_number
+      round: @current_round.round_number,
+      goal: game.game_map.goal_position
     }
   end
 

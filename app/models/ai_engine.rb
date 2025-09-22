@@ -15,6 +15,8 @@ class AiEngine
 
   def initialize
     @execution_context = nil
+    # Load Smalruby3 Koshien library
+    load_koshien_library
   end
 
   def execute_ai(player:, game_state:, turn:)
@@ -179,11 +181,46 @@ class AiEngine
       Rails.logger.info "AI Player #{@player.id}: #{message}"
     end
 
+    # Koshien compatibility methods
+    def get_my_position
+      {"x" => @player.position_x, "y" => @player.position_y}
+    end
+
+    def get_goal_position
+      goal_pos = @game_state[:goal]
+      return nil if goal_pos.nil?
+
+      # Convert string keys to numeric values if needed
+      {
+        "x" => goal_pos["x"].to_i,
+        "y" => goal_pos["y"].to_i
+      }
+    end
+
+    def get_turn_number
+      @game_state[:turn]
+    end
+
+    def get_round_number
+      @game_state[:round]
+    end
+
     private
 
     def add_action(action)
       @actions << action
       action
     end
+  end
+
+  private
+
+  def load_koshien_library
+    # Load the Smalruby3 Koshien library safely
+
+    require Rails.root.join("lib", "smalruby3")
+    require Rails.root.join("lib", "smalruby3", "koshien")
+  rescue LoadError => e
+    Rails.logger.warn "Could not load Koshien library: #{e.message}"
   end
 end
