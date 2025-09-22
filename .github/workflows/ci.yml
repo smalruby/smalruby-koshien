@@ -79,8 +79,12 @@ jobs:
         run: |
           # Extract coverage percentage from SimpleCov JSON report
           COVERAGE=$(ruby -r json -e "
-            data = JSON.parse(File.read('coverage/.resultset.json'))
-            puts data['RSpec']['coverage'].values.flatten.sum.to_f / data['RSpec']['coverage'].values.flatten.size * 100
+            if File.exist?('coverage/coverage.json')
+              data = JSON.parse(File.read('coverage/coverage.json'))
+              puts data['metrics']['covered_percent'].round(2)
+            else
+              puts '0'
+            end
           " 2>/dev/null || echo "0")
           echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
           echo "Coverage: $COVERAGE%"
