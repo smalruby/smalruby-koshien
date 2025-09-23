@@ -112,7 +112,6 @@ class GameEngine
         previous_position_x: position[:x],
         previous_position_y: position[:y],
         score: 0,
-        hp: 100,
         character_level: 1,
         dynamite_left: N_DYNAMITE,
         bomb_left: N_BOMB,
@@ -133,8 +132,6 @@ class GameEngine
         position_y: position[:y],
         previous_position_x: position[:x],
         previous_position_y: position[:y],
-        hp: 100,
-        attack_power: 10,
         state: :normal_state,
         enemy_kill: :no_kill
       )
@@ -180,31 +177,48 @@ class GameEngine
   def execute_player_ais(players, turn)
     ai_engine = AiEngine.new
 
-    players.map do |player|
-      # Execute player AI code
-      ai_result = ai_engine.execute_ai(
-        player: player,
-        game_state: build_game_state(player),
-        turn: turn
-      )
+    # Execute AIs using turn-over based execution
+    execute_ais_with_turn_over(players, ai_engine, turn)
+  end
 
-      {
-        player_id: player.id,
-        success: true,
-        result: ai_result
-      }
-    rescue => e
-      Rails.logger.error "AI execution failed for player #{player.id}: #{e.message}"
+  # New turn-over based AI execution model
+  def execute_ais_with_turn_over(players, ai_engine, turn)
+    ai_results = []
 
-      # Mark player as timeout
-      player.update!(status: :timeout)
+    players.each_with_index do |player, player_index|
+      Rails.logger.debug "Starting AI execution for player #{player.id} (#{player_index})"
 
-      {
-        player_id: player.id,
-        success: false,
-        error: e.message
-      }
+      begin
+        # Execute AI until turn_over is called
+        ai_result = ai_engine.execute_ai_with_turn_over(
+          player: player,
+          game_state: build_game_state(player),
+          turn: turn
+        )
+
+        ai_results << {
+          player_id: player.id,
+          success: true,
+          result: ai_result
+        }
+
+        Rails.logger.debug "AI execution completed for player #{player.id}"
+      rescue => e
+        Rails.logger.error "AI execution failed for player #{player.id}: #{e.class} - #{e.message}"
+        Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
+
+        # Mark player as timeout
+        player.update!(status: :timeout)
+
+        ai_results << {
+          player_id: player.id,
+          success: false,
+          error: e.message
+        }
+      end
     end
+
+    ai_results
   end
 
   def process_turn_actions(players, ai_results, turn)
@@ -216,7 +230,7 @@ class GameEngine
     # Enemy AI logic will be implemented here
     # For now, basic enemy behavior
     @current_round.enemies.each do |enemy|
-      next unless enemy.alive?
+      next if enemy.killed?
 
       # Simple enemy movement logic
       # TODO: Implement proper enemy AI
@@ -334,7 +348,8 @@ class GameEngine
       map: game.game_map.map_data,
       items: @current_round.item_locations,
       turn: @current_round.game_turns.count + 1,
-      round: @current_round.round_number
+      round: @current_round.round_number,
+      goal: game.game_map.goal_position
     }
   end
 

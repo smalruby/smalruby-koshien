@@ -19,9 +19,11 @@
 - **Game** - プレイヤーAIとステータスを持つメインゲームエンティティ
 - **GameRound** - 個別ラウンド（ゲームあたり2回）とプレイヤー、敵
 - **GameTurn** - 個別ターン（ラウンドあたり最大50回）とイベント
-- **Player** - プレイヤーの状態と位置管理
-- **Enemy** - AI動作を持つ敵エンティティ
+- **Player** - プレイヤーの状態と位置管理（HPシステム除去済み）
+- **Enemy** - AI動作を持つ敵エンティティ（HPシステム除去済み）
 - **GameEvent** - 包括的なイベントログシステム
+- **PlayerAi** - プレイヤーのAIコード管理
+- **GameMap** - マップデータとゴール位置管理
 
 ## ゲームフロー
 
@@ -73,48 +75,159 @@ result = game_engine.execute_battle
 
 ## AI実行エンジン
 
-### セキュリティ機能
+### AI実行方式
 
-AiEngineは複数の安全層を持つ安全なRubyコード実行を提供します：
+Smalruby甲子園では、Smalruby3フレームワークベースのAIコードを実行します：
 
-**サンドボックス化:**
+**Smalruby3統合:**
 
-- 危険なメソッドを除去した制限された binding
+- StageとSpriteオブジェクトの仮想実装
+- koshienライブラリAPI完全サポート
+- turn_overメカニズムによるターン制御
+- listオブジェクトによるデータ管理
+
+**セキュリティ機能:**
+
+- サンドボックス化されたRubyコード実行
+- 危険なメソッド（system, eval等）の除去
 - タイムアウト保護（ターンあたり10秒）
 - 例外処理とエラー分離
-- メモリとリソース制限
 
-**許可されたAPIメソッド:**
+**Koshien APIメソッド:**
 
-- `move_up`, `move_down`, `move_left`, `move_right`
-- `use_dynamite`, `use_bomb`
-- `get_player_info`, `get_enemy_info`, `get_map_info`
-- `get_item_info`, `get_turn_info`
-- `wait`, `log`
+**使用回数に制限がある命令:**
+- `koshien.connect_game(name:)` - ゲーム接続
+- `koshien.get_map_area(position)` - マップ探索
+- `koshien.move_to(position)` - 指定位置への移動
+- `koshien.set_dynamite(position)` - ダイナマイト設置
+- `koshien.set_bomb(position)` - 爆弾設置
+- `koshien.turn_over` - ターン終了
+
+**使用回数の制限がない命令:**
+- `koshien.position(x, y)` - 座標変換（x座標、y座標を"x:y"形式に変換）
+- `koshien.calc_route(result:, src:, dst:, except_cells:)` - 経路計算
+- `koshien.map(position)` - 指定座標のマップ情報取得
+- `koshien.map_all` - 全体のマップ情報取得
+- `koshien.map_from(position, from)` - マップ情報から指定座標の情報を参照
+- `koshien.locate_objects(result:, cent:, sq_size:, objects:)` - オブジェクト探索
+- `koshien.position_of_x(position)` - 座標からx座標を取得
+- `koshien.position_of_y(position)` - 座標からy座標を取得
+
+**位置情報取得:**
+- `koshien.player` - 自分の座標取得
+- `koshien.player_x` - 自分のx座標取得
+- `koshien.player_y` - 自分のy座標取得
+- `koshien.other_player` - 相手の座標取得
+- `koshien.other_player_x` - 相手のx座標取得
+- `koshien.other_player_y` - 相手のy座標取得
+- `koshien.enemy` - 妨害キャラクターの座標取得
+- `koshien.enemy_x` - 妨害キャラクターのx座標取得
+- `koshien.enemy_y` - 妨害キャラクターのy座標取得
+- `koshien.goal` - ゴール座標取得
+- `koshien.goal_x` - ゴールのx座標取得
+- `koshien.goal_y` - ゴールのy座標取得
+
+**その他:**
+- `koshien.object(name)` - マップ情報の種類に対応した値を取得
+- `koshien.set_message(message)` - メッセージ表示
 
 **AIコードの例:**
 
 ```ruby
-# 現在のゲーム状態を取得
-player = get_player_info
-enemies = get_enemy_info
-map = get_map_info
+require "smalruby3"
 
-# シンプルなAIロジック
-if player[:x] < 5
-  move_right
-elsif enemies.any? { |e| e[:x] == player[:x] && e[:y] == player[:y] }
-  use_dynamite
-else
-  move_up
+Stage.new(
+  "Stage",
+  lists: [
+    {
+      name: "最短経路" # list("$最短経路")
+    },
+    {
+      name: "通らない座標" # list("$通らない座標")
+    }
+  ]
+) do
+end
+
+Sprite.new(
+  "スプライト1",
+) do
+  def self.減点アイテムを避けながらゴールにむかって1マス進む
+    koshien.locate_objects(result: list("$通らない座標"), objects: "ABCD")
+    koshien.calc_route(result: list("$最短経路"), src: koshien.player, dst: koshien.goal, except_cells: list("$通らない座標"))
+    if list("$最短経路").length == 1
+      # 減点アイテムで囲まれてしまっている場合は減点アイテムを避けずにゴールに向かう
+      koshien.calc_route(result: list("$最短経路"))
+    end
+    koshien.move_to(list("$最短経路")[2])
+  end
+
+  koshien.connect_game(name: "player1")
+
+  koshien.get_map_area("2:2")
+  koshien.get_map_area("7:2")
+  koshien.turn_over
+
+  koshien.get_map_area("12:2")
+  koshien.get_map_area("16:2")
+  koshien.turn_over
+
+  koshien.get_map_area("2:7")
+  koshien.get_map_area("7:7")
+  koshien.turn_over
+
+  koshien.get_map_area("12:7")
+  koshien.get_map_area("16:7")
+  koshien.turn_over
+
+  koshien.get_map_area("2:12")
+  koshien.get_map_area("7:12")
+  koshien.turn_over
+
+  koshien.get_map_area("12:12")
+  koshien.get_map_area("16:12")
+  koshien.turn_over
+
+  koshien.get_map_area("2:16")
+  koshien.get_map_area("7:16")
+  koshien.turn_over
+
+  koshien.get_map_area("12:16")
+  koshien.get_map_area("16:16")
+  koshien.turn_over
+
+  loop do
+    koshien.get_map_area(koshien.player)
+    減点アイテムを避けながらゴールにむかって1マス進む
+    koshien.turn_over
+
+    koshien.get_map_area(koshien.other_player)
+    減点アイテムを避けながらゴールにむかって1マス進む
+    koshien.turn_over
+  end
 end
 ```
+
+### ターン制御メカニズム
+
+**turn_overシステム:**
+
+- AIは複数のアクションを実行可能（探索、移動など）
+- `koshien.turn_over`呼び出しでターン終了
+- 1ターンに移動は1回まで（複数の探索は可能）
+- 両プレイヤーがturn_overを呼ぶまで次ターンに進まない
+
+**アクションタイプ:**
+
+- `explore` - マップエリア探索アクション
+- `move` - プレイヤー移動アクション（target_x, target_y指定）
+- `wait` - 何もしない（デフォルト）
 
 ### エラーハンドリング
 
 - **AiTimeoutError** - コード実行が制限時間を超過
 - **AiSecurityError** - セキュリティポリシー違反
-- **AiExecutionError** - 一般的な実行失敗
+- **AiExecutionError** - 一般的な実行失敗（Stage/Spriteオブジェクト作成エラー等）
 
 エラーが発生したプレイヤーは `timeout` としてマークされ、アクティブプレイから除外されます。
 
@@ -143,19 +256,28 @@ end
 
 ### 戦闘システム
 
-**敵との相互作用:**
+**敵（オロチ）システム:**
 
-- 敵は隣接するプレイヤーを攻撃可能
-- 敵ごとに設定可能な攻撃力
-- 攻撃されたプレイヤーはポイントを失う（デフォルト-10）
-- 敵は爆発物で破壊可能
+- 敵は状態（normal, angry, kill, done）を持つ
+- 敵はkilledフラグで生存状態を管理（HPシステムは使用しない）
+- 敵が攻撃可能な状態の時、プレイヤーは即座に完了状態になる
+- スコアから減点（デフォルト-10ポイント）を適用
+- 敵の撃退モード（enemy_kill）による特殊な相互作用
 
-**爆発メカニクス:**
+**敵の状態管理:**
 
-- ダイナマイトと爆弾は爆発効果を作成
-- 範囲内の破壊可能な壁を破壊
-- 爆発範囲内の敵にダメージ
-- 複数のプレイヤーに影響する可能性
+- `normal_state`: 通常状態
+- `angry`: 怒りモード（41ターン目以降）
+- `kill`: やられるぞモード（草薙剣取得時）
+- `done`: 撃退済み
+
+**敵の撃退システム:**
+
+- `no_kill`: どちらも撃退不可
+- `player1_kill`: プレイヤー1のみ撃退可能
+- `player2_kill`: プレイヤー2のみ撃退可能
+- `both_kill`: 両プレイヤー撃退可能
+- `kill_done`: 撃退済み
 
 ### スコアリングシステム
 
@@ -163,15 +285,22 @@ end
 
 - アイテム収集: +10〜+60ポイント（プラスアイテム）
 - アイテムペナルティ: -10〜-40ポイント（マイナスアイテム）
-- 歩行ボーナス: 5回移動ごとに+3ポイント
+- 歩行ボーナス: 5回移動ごとに+3ポイント（walk_bonus_counter管理）
 - ゴールボーナス: ゴール到達で+100ポイント
-- 敵ダメージ: 攻撃を受けると-10ポイント
+- 敵攻撃: 攻撃を受けると-10ポイント
 
 **キャラクターレベリング:**
 
-- レベルは総スコアから計算: `(score - 1) / 20`
-- レベルはプレイヤーの能力と外観に影響
-- 最大レベル: 8
+- レベルは総スコアから計算: `[(score - 1) / 20, 0].max.clamp(1, 8)`
+- レベル1〜8の範囲で管理
+- プレイヤーの見た目と能力に影響
+
+**プレイヤー状態管理:**
+
+- `playing`: プレイ中
+- `completed`: ゴール到達または敵に倒された
+- `timeout`: AIタイムアウト
+- `timeup`: 制限時間切れ
 
 ### 勝利条件
 
@@ -201,6 +330,8 @@ end
 - `PLAYER_COLLISION` - プレイヤー衝突
 - `WALK_BONUS` - 歩行ボーナス適用
 - `AI_TIMEOUT` - AI実行失敗
+- `EXPLORE` - マップエリア探索
+- `WAIT` - プレイヤー待機
 
 **イベントデータ構造:**
 
@@ -377,10 +508,13 @@ config.active_job.queue_adapter = :sidekiq  # または :resque
 
 ### よくある問題
 
-1. **AIタイムアウト** - コードの複雑さとループをチェック
-2. **無効な移動** - マップ境界と障害物を確認
-3. **イベント欠損** - TurnProcessorのイベントログを確認
-4. **ジョブ失敗** - ジョブキューとエラーログを監視
+1. **AIタイムアウト** - コードの複雑さとループをチェック（解決済み：Stage/Spriteオブジェクト作成問題の修正）
+2. **プライベートメソッドエラー** - MockKoshienからadd_actionメソッドアクセス問題（解決済み：メソッドを公開に変更）
+3. **turn_over無限ループ** - turn_over呼び出しが無限に続く問題（解決済み：ターン終了ロジック修正）
+4. **Stage.newオブジェクト作成エラー** - Smalruby3::Stageオブジェクトが返される問題（解決済み：文字列置換で対応）
+5. **無効な移動** - マップ境界と障害物を確認
+6. **イベント欠損** - TurnProcessorのイベントログを確認
+7. **ジョブ失敗** - ジョブキューとエラーログを監視
 
 ### デバッグツール
 
@@ -388,14 +522,57 @@ config.active_job.queue_adapter = :sidekiq  # または :resque
 # デバッグログを有効化
 Rails.logger.level = Logger::DEBUG
 
+# デバッグスクリプトの使用
+ruby script/debug_game_logic.rb
+
 # 手動ゲーム実行
 game_engine = GameEngine.new(game)
 game_engine.execute_battle
 
 # ゲーム状態確認
 game.game_rounds.includes(:players, :enemies, game_turns: :game_events)
+
+# AI実行ログの確認
+tail -f log/development.log | grep -E "(AI execution|turn_over|koshien)"
 ```
+
+## 最近の重要な修正事項
+
+### AI実行タイムアウト問題の解決 (2025-09-22)
+
+**問題:** プリセットAIが実行時にタイムアウトエラーが発生していた
+
+**原因:**
+1. Stage.new/Sprite.newオブジェクトが返されてeval結果となっていた
+2. MockKoshienのadd_actionメソッドがprivateでアクセスできなかった
+3. turn_over呼び出しが無限ループになっていた
+4. exploreアクションタイプがTurnProcessorで未サポートだった
+
+**解決策:**
+1. AI前処理でStage.new→Stage、Sprite.new→Spriteに置換
+2. add_actionメソッドをpublicに変更
+3. turn_over呼び出し時に即座にターン終了するよう修正
+4. TurnProcessorにexploreアクション処理を追加
+
+### HP属性システムの削除 (2025-09-22)
+
+**変更内容:**
+- Enemy、PlayerモデルからHP属性を削除（vendor実装に合わせる）
+- alive?、defeated?、take_damageメソッドを削除
+- killed?メソッドをEnemyに追加（killed属性をチェック）
+- encount_enemy?メソッドをPlayerに追加
+- 敵攻撃時は即座にプレイヤーをcompleted状態に変更
+
+### デバッグ機能の強化
+
+**追加されたデバッグ機能:**
+- script/debug_game_logic.rbスクリプト
+- 詳細なAI実行ログ
+- ゲーム状態分析機能
+- プリセットAI/マップを使用したテスト環境
 
 ## 結論
 
 Smalruby甲子園ゲームロジック実装は、AIプログラミング競技のための堅牢で安全、かつ拡張可能な基盤を提供します。このアーキテクチャは、セキュリティとパフォーマンスを維持しながら複雑なゲームメカニクスをサポートし、教育環境や競技プログラミングコンテストに適しています。
+
+最近の修正により、プリセットAIの実行が安定し、vendor実装との互換性が確保されました。これにより、本格的なAI対戦が可能になっています。

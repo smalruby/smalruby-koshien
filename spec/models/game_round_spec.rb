@@ -93,9 +93,7 @@ RSpec.describe GameRound, type: :model do
       enemy = Enemy.create!(
         game_round: game_round,
         position_x: 5,
-        position_y: 5,
-        hp: 100,
-        attack_power: 20
+        position_y: 5
       )
 
       expect(game_round.enemies).to include(enemy)

@@ -85,7 +85,6 @@ RSpec.describe GameEngine, type: :model do
 
       players.each do |player|
         expect(player.score).to eq(0)
-        expect(player.hp).to eq(100)
         expect(player.character_level).to eq(1)
         expect(player.dynamite_left).to eq(GameConstants::N_DYNAMITE)
         expect(player.bomb_left).to eq(GameConstants::N_BOMB)
@@ -97,8 +96,8 @@ RSpec.describe GameEngine, type: :model do
   describe "#check_win_conditions" do
     let(:round) { game.game_rounds.create!(round_number: 1, status: :in_progress, item_locations: {}) }
     let(:turn) { round.game_turns.create!(turn_number: 1, turn_finished: false) }
-    let!(:player1) { round.players.create!(player_ai: first_player_ai, position_x: 1, position_y: 1, status: :playing, score: 0, hp: 100, character_level: 1, dynamite_left: 2, bomb_left: 2, walk_bonus_counter: 0, acquired_positive_items: [0, 0, 0, 0, 0, 0], previous_position_x: 1, previous_position_y: 1) }
-    let!(:player2) { round.players.create!(player_ai: second_player_ai, position_x: 2, position_y: 2, status: :playing, score: 0, hp: 100, character_level: 1, dynamite_left: 2, bomb_left: 2, walk_bonus_counter: 0, acquired_positive_items: [0, 0, 0, 0, 0, 0], previous_position_x: 2, previous_position_y: 2) }
+    let!(:player1) { round.players.create!(player_ai: first_player_ai, position_x: 1, position_y: 1, status: :playing, score: 0, character_level: 1, dynamite_left: 2, bomb_left: 2, walk_bonus_counter: 0, acquired_positive_items: [0, 0, 0, 0, 0, 0], previous_position_x: 1, previous_position_y: 1) }
+    let!(:player2) { round.players.create!(player_ai: second_player_ai, position_x: 2, position_y: 2, status: :playing, score: 0, character_level: 1, dynamite_left: 2, bomb_left: 2, walk_bonus_counter: 0, acquired_positive_items: [0, 0, 0, 0, 0, 0], previous_position_x: 2, previous_position_y: 2) }
 
     before do
       game_engine.instance_variable_set(:@current_round, round)
