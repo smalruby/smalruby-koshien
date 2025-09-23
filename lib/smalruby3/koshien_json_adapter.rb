@@ -37,7 +37,7 @@ module Smalruby3
 
     # Main game loop - wait for turns and execute
     def run_game_loop
-      while true
+      loop do
         message = read_message
         break unless message
 
@@ -70,8 +70,8 @@ module Smalruby3
 
     # Game state accessors
     def current_player_position
-      return { x: 0, y: 0 } unless @current_turn_data
-      @current_turn_data["current_player"]["position"] || { x: 0, y: 0 }
+      return {x: 0, y: 0} unless @current_turn_data
+      @current_turn_data["current_player"]["position"] || {x: 0, y: 0}
     end
 
     def other_players
@@ -87,7 +87,7 @@ module Smalruby3
     end
 
     def goal_position
-      @game_state&.dig("game_map", "goal_position") || { x: 14, y: 14 }
+      @game_state&.dig("game_map", "goal_position") || {x: 14, y: 14}
     end
 
     private
@@ -218,7 +218,7 @@ module Smalruby3
       if in_json_mode?
         if position.is_a?(String) && position.include?(":")
           x, y = position.split(":").map(&:to_i)
-          json_adapter.add_action({ action_type: "move", target_x: x, target_y: y })
+          json_adapter.add_action({action_type: "move", target_x: x, target_y: y})
         end
       else
         # Original stub behavior
@@ -230,7 +230,7 @@ module Smalruby3
       if in_json_mode?
         if position.is_a?(String) && position.include?(":")
           x, y = position.split(":").map(&:to_i)
-          json_adapter.add_action({ action_type: "explore", target_position: { x: x, y: y }, area_size: 5 })
+          json_adapter.add_action({action_type: "explore", target_position: {x: x, y: y}, area_size: 5})
         end
       else
         # Original stub behavior
@@ -243,7 +243,7 @@ module Smalruby3
         pos = position || player
         if pos.is_a?(String) && pos.include?(":")
           x, y = pos.split(":").map(&:to_i)
-          json_adapter.add_action({ action_type: "use_item", item: "dynamite", position: { x: x, y: y } })
+          json_adapter.add_action({action_type: "use_item", item: "dynamite", position: {x: x, y: y}})
         end
       else
         # Original stub behavior
@@ -256,7 +256,7 @@ module Smalruby3
         pos = position || player
         if pos.is_a?(String) && pos.include?(":")
           x, y = pos.split(":").map(&:to_i)
-          json_adapter.add_action({ action_type: "use_item", item: "bomb", position: { x: x, y: y } })
+          json_adapter.add_action({action_type: "use_item", item: "bomb", position: {x: x, y: y}})
         end
       else
         # Original stub behavior

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'json'
-require 'open3'
-require 'timeout'
+require "json"
+require "open3"
+require "timeout"
 
 # AI Process Execution Wrapper
 # Manages Ruby AI process execution with JSON communication over stdin/stdout
@@ -11,7 +11,7 @@ class AiProcessManager
   MAX_TURNS = 50
 
   attr_reader :process_pid, :stdin, :stdout, :stderr, :thread, :player_name,
-              :game_id, :round_number, :player_index, :player_ai_id
+    :game_id, :round_number, :player_index, :player_ai_id
 
   def initialize(ai_script_path:, game_id:, round_number:, player_index:, player_ai_id:)
     @ai_script_path = ai_script_path
@@ -130,24 +130,24 @@ class AiProcessManager
       when "turn_over"
         actions = message.dig("data", "actions") || []
         @status = :turn_completed
-        return { success: true, actions: actions }
+        return {success: true, actions: actions}
       when "debug"
-        Rails.logger.debug "AI Debug: #{message.dig('data', 'message')}"
+        Rails.logger.debug "AI Debug: #{message.dig("data", "message")}"
         # Continue waiting for turn_over
       when "error"
-        Rails.logger.error "AI Error: #{message.dig('data', 'message')}"
+        Rails.logger.error "AI Error: #{message.dig("data", "message")}"
         # Continue waiting for turn_over
       when nil
         # Timeout or process ended
         @status = :timeout
-        return { success: false, reason: :timeout }
+        return {success: false, reason: :timeout}
       else
-        Rails.logger.warn "Unexpected message type: #{message['type']}"
+        Rails.logger.warn "Unexpected message type: #{message["type"]}"
         # Continue waiting
       end
     end
 
-    { success: false, reason: :unknown }
+    {success: false, reason: :unknown}
   end
 
   # Send turn end confirmation
@@ -165,7 +165,7 @@ class AiProcessManager
     }
 
     send_message(confirm_message)
-    @status = @turn_count >= MAX_TURNS ? :game_completed : :ready
+    @status = (@turn_count >= MAX_TURNS) ? :game_completed : :ready
     true
   end
 
@@ -202,18 +202,18 @@ class AiProcessManager
       # Wait for process to terminate gracefully
       if @thread&.alive?
         @thread.join(1) # Wait 1 second
-        unless @thread.alive?
-          Rails.logger.info "AI Process terminated gracefully: PID=#{@process_pid}"
-        else
+        if @thread.alive?
           # Force kill if still alive
-          Process.kill('TERM', @process_pid)
+          Process.kill("TERM", @process_pid)
           @thread.join(1)
           if @thread.alive?
-            Process.kill('KILL', @process_pid)
+            Process.kill("KILL", @process_pid)
             Rails.logger.warn "AI Process force killed: PID=#{@process_pid}"
           else
             Rails.logger.info "AI Process terminated: PID=#{@process_pid}"
           end
+        else
+          Rails.logger.info "AI Process terminated gracefully: PID=#{@process_pid}"
         end
       end
     rescue => e
@@ -254,9 +254,9 @@ class AiProcessManager
   # Check if AI script uses smalruby3
   def smalruby3?(ai_path)
     File.open(ai_path) do |f|
-      while line = f.gets
-        return true if /require.*smalruby3/ =~ line
-        return false if /require.*["']smalruby["']/ =~ line
+      while (line = f.gets)
+        return true if /require.*smalruby3/.match?(line)
+        return false if /require.*["']smalruby["']/.match?(line)
       end
     end
     false

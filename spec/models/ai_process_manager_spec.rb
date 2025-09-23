@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe AiProcessManager, type: :model do
-  let(:ai_script_path) { Rails.root.join('spec', 'fixtures', 'player_ai', 'stage_02_wait_only.rb') }
-  let(:game_id) { '123' }
+  let(:ai_script_path) { Rails.root.join("spec", "fixtures", "player_ai", "stage_02_wait_only.rb") }
+  let(:game_id) { "123" }
   let(:round_number) { 1 }
   let(:player_index) { 0 }
-  let(:player_ai_id) { '456' }
+  let(:player_ai_id) { "456" }
 
   let(:manager) do
     AiProcessManager.new(
@@ -24,27 +24,27 @@ RSpec.describe AiProcessManager, type: :model do
       width: 15,
       height: 15,
       map_data: Array.new(15) { Array.new(15, 0) },
-      goal_position: { x: 14, y: 14 }
+      goal_position: {x: 14, y: 14}
     }
   end
 
-  let(:initial_position) { { x: 0, y: 0 } }
-  let(:initial_items) { { dynamite_left: 2, bomb_left: 2 } }
-  let(:game_constants) { { max_turns: 50, turn_timeout: 5 } }
+  let(:initial_position) { {x: 0, y: 0} }
+  let(:initial_items) { {dynamite_left: 2, bomb_left: 2} }
+  let(:game_constants) { {max_turns: 50, turn_timeout: 5} }
   let(:rand_seed) { 12345 }
 
   let(:current_player) do
     {
-      id: '789',
-      position: { x: 0, y: 0 },
-      previous_position: { x: 0, y: 0 },
+      id: "789",
+      position: {x: 0, y: 0},
+      previous_position: {x: 0, y: 0},
       score: 0,
       character_level: 1,
       dynamite_left: 2,
       bomb_left: 2,
       walk_bonus_counter: 0,
       acquired_positive_items: [0, 0, 0, 0, 0, 0],
-      status: 'playing'
+      status: "playing"
     }
   end
 
@@ -56,8 +56,8 @@ RSpec.describe AiProcessManager, type: :model do
     }
   end
 
-  describe '#initialize' do
-    it 'sets initial attributes correctly' do
+  describe "#initialize" do
+    it "sets initial attributes correctly" do
       expect(manager.game_id).to eq(game_id)
       expect(manager.round_number).to eq(round_number)
       expect(manager.player_index).to eq(player_index)
@@ -66,9 +66,9 @@ RSpec.describe AiProcessManager, type: :model do
     end
   end
 
-  describe '#start' do
-    context 'with valid AI script' do
-      it 'starts the process successfully' do
+  describe "#start" do
+    context "with valid AI script" do
+      it "starts the process successfully" do
         expect(manager.start).to be true
         expect(manager.status).to eq(:starting)
         expect(manager.process_pid).to be_a(Integer)
@@ -78,31 +78,31 @@ RSpec.describe AiProcessManager, type: :model do
       end
     end
 
-    context 'with invalid AI script path' do
-      let(:ai_script_path) { '/nonexistent/script.rb' }
+    context "with invalid AI script path" do
+      let(:ai_script_path) { "/nonexistent/script.rb" }
 
-      it 'fails to start the process' do
+      it "fails to start the process" do
         expect(manager.start).to be false
         expect(manager.status).to eq(:failed)
         expect(manager.process_pid).to be_nil
       end
     end
 
-    context 'when already started' do
+    context "when already started" do
       before { manager.start }
       after { manager.stop }
 
-      it 'raises an error' do
+      it "raises an error" do
         expect { manager.start }.to raise_error("Process already started")
       end
     end
   end
 
-  describe '#initialize_game' do
+  describe "#initialize_game" do
     before { manager.start }
     after { manager.stop }
 
-    it 'sends initialization message and receives ready response' do
+    it "sends initialization message and receives ready response" do
       expect(manager.initialize_game(
         game_map: game_map,
         initial_position: initial_position,
@@ -112,10 +112,10 @@ RSpec.describe AiProcessManager, type: :model do
       )).to be true
 
       expect(manager.status).to eq(:ready)
-      expect(manager.player_name).to eq('wait_only_player')
+      expect(manager.player_name).to eq("wait_only_player")
     end
 
-    context 'when process not started' do
+    context "when process not started" do
       let(:manager) do
         AiProcessManager.new(
           ai_script_path: ai_script_path,
@@ -126,7 +126,7 @@ RSpec.describe AiProcessManager, type: :model do
         )
       end
 
-      it 'raises an error' do
+      it "raises an error" do
         expect {
           manager.initialize_game(
             game_map: game_map,
@@ -140,7 +140,7 @@ RSpec.describe AiProcessManager, type: :model do
     end
   end
 
-  describe '#start_turn and #wait_for_turn_completion' do
+  describe "#start_turn and #wait_for_turn_completion" do
     before do
       manager.start
       manager.initialize_game(
@@ -154,7 +154,7 @@ RSpec.describe AiProcessManager, type: :model do
 
     after { manager.stop }
 
-    it 'processes a complete turn cycle' do
+    it "processes a complete turn cycle" do
       # Start turn
       expect(manager.start_turn(
         turn_number: 1,
@@ -178,7 +178,7 @@ RSpec.describe AiProcessManager, type: :model do
     end
   end
 
-  describe '#end_game' do
+  describe "#end_game" do
     before do
       manager.start
       manager.initialize_game(
@@ -192,14 +192,14 @@ RSpec.describe AiProcessManager, type: :model do
 
     after { manager.stop }
 
-    it 'sends game end message and stops process' do
+    it "sends game end message and stops process" do
       expect(manager.alive?).to be true
 
       manager.end_game(
-        reason: 'max_turns_reached',
+        reason: "max_turns_reached",
         final_score: 100,
-        final_position: { x: 5, y: 5 },
-        round_winner: 'player_1',
+        final_position: {x: 5, y: 5},
+        round_winner: "player_1",
         total_turns: 50
       )
 
@@ -208,10 +208,10 @@ RSpec.describe AiProcessManager, type: :model do
     end
   end
 
-  describe '#stop' do
+  describe "#stop" do
     before { manager.start }
 
-    it 'stops the process cleanly' do
+    it "stops the process cleanly" do
       expect(manager.alive?).to be true
 
       manager.stop
@@ -222,7 +222,7 @@ RSpec.describe AiProcessManager, type: :model do
     end
   end
 
-  describe '#timed_out?' do
+  describe "#timed_out?" do
     before do
       manager.start
       manager.initialize_game(
@@ -236,7 +236,7 @@ RSpec.describe AiProcessManager, type: :model do
 
     after { manager.stop }
 
-    it 'returns false when process is responsive' do
+    it "returns false when process is responsive" do
       expect(manager.timed_out?).to be false
     end
 
@@ -244,8 +244,8 @@ RSpec.describe AiProcessManager, type: :model do
     # which would slow down tests significantly
   end
 
-  describe 'process lifecycle with timeout AI' do
-    let(:timeout_ai_script) { Rails.root.join('spec', 'fixtures', 'player_ai', 'stage_01_timeout.rb') }
+  describe "process lifecycle with timeout AI" do
+    let(:timeout_ai_script) { Rails.root.join("spec", "fixtures", "player_ai", "stage_01_timeout.rb") }
     let(:timeout_manager) do
       AiProcessManager.new(
         ai_script_path: timeout_ai_script,
@@ -256,7 +256,7 @@ RSpec.describe AiProcessManager, type: :model do
       )
     end
 
-    it 'handles timeout scenarios' do
+    it "handles timeout scenarios" do
       timeout_manager.start
       expect(timeout_manager.initialize_game(
         game_map: game_map,
@@ -283,7 +283,7 @@ RSpec.describe AiProcessManager, type: :model do
     end
   end
 
-  describe 'JSON protocol compliance' do
+  describe "JSON protocol compliance" do
     before do
       manager.start
       manager.initialize_game(
@@ -297,7 +297,7 @@ RSpec.describe AiProcessManager, type: :model do
 
     after { manager.stop }
 
-    it 'follows the JSON protocol specification' do
+    it "follows the JSON protocol specification" do
       # Test message structure
       manager.start_turn(
         turn_number: 1,
@@ -318,8 +318,8 @@ RSpec.describe AiProcessManager, type: :model do
         expect(actions.length).to be <= 2  # Max 2 actions per turn
 
         actions.each do |action|
-          expect(action).to have_key('action_type')
-          expect(['move', 'use_item', 'explore']).to include(action['action_type'])
+          expect(action).to have_key("action_type")
+          expect(["move", "use_item", "explore"]).to include(action["action_type"])
         end
       end
     end
