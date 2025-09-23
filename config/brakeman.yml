@@ -1,0 +1,3 @@
+skip_files:
+  - "app/models/ai_engine.rb"
+  - "app/models/ai_process_manager.rb"
