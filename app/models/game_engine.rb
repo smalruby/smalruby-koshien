@@ -1,3 +1,5 @@
+require "fileutils"
+
 class GameEngine
   include GameConstants
 
@@ -175,36 +177,75 @@ class GameEngine
   end
 
   def execute_player_ais(players, turn)
-    ai_engine = AiEngine.new
-
-    # Execute AIs using turn-over based execution
-    execute_ais_with_turn_over(players, ai_engine, turn)
+    # Execute AIs using process-based execution
+    execute_ais_with_process_manager(players, turn)
   end
 
-  # New turn-over based AI execution model
-  def execute_ais_with_turn_over(players, ai_engine, turn)
+  # Process-based AI execution model using AiProcessManager
+  def execute_ais_with_process_manager(players, turn)
     ai_results = []
 
     players.each_with_index do |player, player_index|
-      Rails.logger.debug "Starting AI execution for player #{player.id} (#{player_index})"
+      Rails.logger.debug "Starting AI process execution for player #{player.id} (#{player_index})"
 
       begin
-        # Execute AI until turn_over is called
-        ai_result = ai_engine.execute_ai_with_turn_over(
-          player: player,
-          game_state: build_game_state(player),
-          turn: turn
+        # Get AI script path from player_ai
+        ai_script_path = get_ai_script_path(player)
+
+        # Create AI process manager
+        ai_manager = AiProcessManager.new(
+          ai_script_path: ai_script_path,
+          game_id: @current_round.game.id.to_s,
+          round_number: @current_round.round_number,
+          player_index: player_index,
+          player_ai_id: player.player_ai.id.to_s
         )
 
-        ai_results << {
-          player_id: player.id,
-          success: true,
-          result: ai_result
-        }
+        # Start AI process
+        unless ai_manager.start
+          raise "Failed to start AI process for player #{player.id}"
+        end
 
-        Rails.logger.debug "AI execution completed for player #{player.id}"
+        # Initialize game with current state
+        game_state = build_game_state_for_process(player)
+        unless ai_manager.initialize_game(**game_state)
+          raise "Failed to initialize AI game for player #{player.id}"
+        end
+
+        # Start turn
+        turn_data = build_turn_data(player)
+        unless ai_manager.start_turn(**turn_data)
+          raise "Failed to start AI turn for player #{player.id}"
+        end
+
+        # Wait for turn completion
+        result = ai_manager.wait_for_turn_completion
+        if result[:success]
+          # Confirm turn end
+          ai_manager.confirm_turn_end(actions_processed: result[:actions].length)
+
+          ai_results << {
+            player_id: player.id,
+            success: true,
+            result: {actions: result[:actions]}
+          }
+        else
+          # Mark player as timeout
+          player.update!(status: :timeout)
+
+          ai_results << {
+            player_id: player.id,
+            success: false,
+            error: "AI process failed: #{result[:reason]}"
+          }
+        end
+
+        # Stop AI process
+        ai_manager.stop
+
+        Rails.logger.debug "AI process execution completed for player #{player.id}"
       rescue => e
-        Rails.logger.error "AI execution failed for player #{player.id}: #{e.class} - #{e.message}"
+        Rails.logger.error "AI process execution failed for player #{player.id}: #{e.class} - #{e.message}"
         Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
 
         # Mark player as timeout
@@ -341,7 +382,7 @@ class GameEngine
   end
 
   def build_game_state(player)
-    # Build game state object for AI
+    # Build game state object for AI (legacy method for backward compatibility)
     {
       player: player.api_info,
       enemies: @current_round.enemies.map(&:api_info),
@@ -351,6 +392,66 @@ class GameEngine
       round: @current_round.round_number,
       goal: game.game_map.goal_position
     }
+  end
+
+  def build_game_state_for_process(player)
+    # Build game state for AiProcessManager initialization
+    {
+      game_map: {
+        width: game.game_map.width,
+        height: game.game_map.height,
+        map_data: game.game_map.map_data,
+        goal_position: game.game_map.goal_position
+      },
+      initial_position: {x: player.position_x, y: player.position_y},
+      initial_items: {
+        dynamite_left: player.dynamite_left,
+        bomb_left: player.bomb_left
+      },
+      game_constants: {
+        max_turns: MAX_TURNS_PER_ROUND,
+        turn_timeout: TURN_DURATION
+      },
+      rand_seed: @current_round.rand_seed || generate_rand_seed
+    }
+  end
+
+  def build_turn_data(player)
+    # Build turn data for AiProcessManager turn execution
+    {
+      turn_number: @current_round.game_turns.count + 1,
+      current_player: player.api_info,
+      other_players: @current_round.players.where.not(id: player.id).map(&:api_info),
+      enemies: @current_round.enemies.map(&:api_info),
+      visible_map: build_visible_map(player)
+    }
+  end
+
+  def build_visible_map(player)
+    # Build visible map based on player's exploration
+    # For now, return the full map - TODO: implement exploration-based visibility
+    {
+      width: game.game_map.width,
+      height: game.game_map.height,
+      map_data: game.game_map.map_data
+    }
+  end
+
+  def get_ai_script_path(player)
+    # Get AI script path from player's AI code
+    # For now, write code to temp file - TODO: implement proper script management
+    temp_dir = Rails.root.join("tmp", "ai_scripts")
+    FileUtils.mkdir_p(temp_dir)
+
+    script_path = temp_dir.join("player_#{player.id}_ai.rb")
+    File.write(script_path, player.player_ai.code)
+
+    script_path.to_s
+  end
+
+  def generate_rand_seed
+    # Generate random seed for reproducible AI execution
+    @rand_seed ||= Random.new_seed
   end
 
   def apply_final_bonuses(player)

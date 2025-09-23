@@ -100,9 +100,7 @@ RSpec.describe AiProcessManager, type: :model do
   end
 
   describe "#initialize_game" do
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
-    skip "sends initialization message and receives ready response" do
+    it "sends initialization message and receives ready response" do
       manager.start
       expect(manager.initialize_game(
         game_map: game_map,
@@ -143,9 +141,7 @@ RSpec.describe AiProcessManager, type: :model do
   end
 
   describe "#start_turn and #wait_for_turn_completion" do
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
-    skip "processes a complete turn cycle" do
+    it "processes a complete turn cycle" do
       manager.start
       manager.initialize_game(
         game_map: game_map,
@@ -181,9 +177,7 @@ RSpec.describe AiProcessManager, type: :model do
   end
 
   describe "#end_game" do
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
-    skip "sends game end message and stops process" do
+    it "sends game end message and stops process" do
       manager.start
       manager.initialize_game(
         game_map: game_map,
@@ -244,9 +238,7 @@ RSpec.describe AiProcessManager, type: :model do
       )
     end
 
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
-    skip "handles timeout scenarios" do
+    it "handles timeout scenarios" do
       timeout_manager.start
       expect(timeout_manager.initialize_game(
         game_map: game_map,
@@ -274,9 +266,7 @@ RSpec.describe AiProcessManager, type: :model do
   end
 
   describe "JSON protocol compliance" do
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
-    skip "follows the JSON protocol specification" do
+    it "follows the JSON protocol specification" do
       manager.start
       manager.initialize_game(
         game_map: game_map,
