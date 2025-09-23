@@ -15,7 +15,6 @@ RSpec.describe TurnProcessor, type: :model do
       previous_position_x: 1,
       previous_position_y: 1,
       score: 0,
-      hp: 100,
       character_level: 1,
       dynamite_left: 2,
       bomb_left: 2,
@@ -32,7 +31,6 @@ RSpec.describe TurnProcessor, type: :model do
       previous_position_x: 3,
       previous_position_y: 3,
       score: 0,
-      hp: 100,
       character_level: 1,
       dynamite_left: 2,
       bomb_left: 2,
@@ -211,26 +209,23 @@ RSpec.describe TurnProcessor, type: :model do
         position_y: player1.position_y,
         previous_position_x: player1.position_x,
         previous_position_y: player1.position_y,
-        hp: 100,
-        attack_power: 20,
         state: :normal_state,
         enemy_kill: :player1_kill
       )
     end
 
     it "敵がプレイヤーを攻撃する" do
-      original_hp = player1.hp
+      original_score = player1.score
 
       turn_processor.send(:process_enemy_interactions)
 
       player1.reload
-      expect(player1.hp).to be < original_hp
+      expect(player1.score).to be <= original_score  # Score may be reduced due to enemy discount
+      expect(player1.status).to eq("completed")  # Player status changes to completed when attacked
       expect(GameEvent.last.event_type).to eq("ENEMY_ATTACK")
     end
 
-    it "HPが0以下になったプレイヤーを完了状態にする" do
-      player1.update!(hp: 10) # 低いHPに設定
-
+    it "攻撃されたプレイヤーのステータスが完了状態になる" do
       turn_processor.send(:process_enemy_interactions)
 
       player1.reload

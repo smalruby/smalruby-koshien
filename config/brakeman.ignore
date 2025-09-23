@@ -3,18 +3,66 @@
     {
       "warning_type": "Dangerous Eval",
       "warning_code": 13,
-      "fingerprint": "82352ee9fad3fdc988b8745a3ca683e0403e8c18e60f3666d2ce02eb3d31a180",
+      "fingerprint": "6ad296824208fafeb0a3009068da0475db9dfaeb81d0cc354231ed43b2a87a38",
       "check_name": "Evaluation",
       "message": "Dynamic code evaluation",
       "file": "app/models/ai_engine.rb",
-      "line": 117,
+      "line": 220,
       "link": "https://brakemanscanner.org/docs/warning_types/dangerous_eval/",
-      "code": "eval(ai_code)",
+      "code": "eval(ai_code.gsub(/require\\s+[\"']smalruby3[\"']/, \"\"))",
       "render_path": null,
       "location": {
         "type": "method",
         "class": "AiExecutionContext",
         "method": "execute"
+      },
+      "user_input": null,
+      "confidence": "Weak",
+      "cwe_id": [
+        913,
+        95
+      ],
+      "note": ""
+    },
+    {
+      "warning_type": "Dangerous Eval",
+      "warning_code": 13,
+      "fingerprint": "841ec14ec776ca8e46ede7d209ba6b5a5cd8ca81421104bf37892a5fcef26469",
+      "check_name": "Evaluation",
+      "message": "Dynamic code evaluation",
+      "file": "app/models/ai_engine.rb",
+      "line": 251,
+      "link": "https://brakemanscanner.org/docs/warning_types/dangerous_eval/",
+      "code": "eval(ai_code.gsub(/require\\s+[\"']smalruby3[\"']/, \"\").gsub(\"Stage.new\", \"Stage\").gsub(\"Sprite.new\", \"Sprite\"))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "AiExecutionContext",
+        "method": "execute_full_ai_code"
+      },
+      "user_input": null,
+      "confidence": "Weak",
+      "cwe_id": [
+        913,
+        95
+      ],
+      "note": ""
+    },
+    {
+      "warning_type": "Dangerous Eval",
+      "warning_code": 13,
+      "fingerprint": "9cbec98cb46f735914b94e6d23f37e50a23e9ef656f0041052e64ef6b4a511a1",
+      "check_name": "Evaluation",
+      "message": "Dynamic string evaluated as code",
+      "file": "lib/smalruby3/stage.rb",
+      "line": 13,
+      "link": "https://brakemanscanner.org/docs/warning_types/dangerous_eval/",
+      "code": "eval(\"#{\"$#{name}\"} = value\", nil, \"lib/smalruby3/stage.rb\", 13)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Smalruby3::Stage",
+        "method": "define_variable"
       },
       "user_input": null,
       "confidence": "Weak",

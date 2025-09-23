@@ -1,0 +1,33 @@
+# 段階(3): 最後まで左右に往復するだけ
+#
+# 成功条件:
+# - 50ターンまでターンが進むこと
+# - 命令に従って各ターンでPlayerのx座標が+1, -1, +1, -1と変化すること
+# - 移動した分の得点が加算されること
+
+require "smalruby3"
+
+Stage.new(
+  "Stage",
+  lists: []
+) do
+end
+
+Sprite.new(
+  "スプライト1"
+) do
+  koshien.connect_game(name: "horizontal_move_player")
+
+  # 50ターンまで左右に往復移動
+  50.times do |turn|
+    current_x = koshien.player_x
+    if turn.even?
+      # 偶数ターン: 右に移動
+      koshien.move_to(koshien.position(current_x + 1, koshien.player_y))
+    else
+      # 奇数ターン: 左に移動
+      koshien.move_to(koshien.position(current_x - 1, koshien.player_y))
+    end
+    koshien.turn_over
+  end
+end

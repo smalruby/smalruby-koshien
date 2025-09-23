@@ -6,7 +6,7 @@ RSpec.describe Enemy, type: :model do
   let(:player_ai_2) { PlayerAi.create!(name: "Test AI 2", code: "test code", author: "test") }
   let(:game) { Game.create!(first_player_ai: player_ai_1, second_player_ai: player_ai_2, game_map: game_map, battle_url: "https://test.example.com/battle/1") }
   let(:game_round) { GameRound.create!(game: game, round_number: 1, status: :preparing, item_locations: {}) }
-  let(:enemy) { Enemy.new(game_round: game_round, position_x: 5, position_y: 5, hp: 100, attack_power: 20) }
+  let(:enemy) { Enemy.new(game_round: game_round, position_x: 5, position_y: 5) }
 
   describe "バリデーション" do
     it "有効な属性で有効である" do
@@ -42,30 +42,6 @@ RSpec.describe Enemy, type: :model do
       expect(enemy).not_to be_valid
       expect(enemy.errors[:position_y]).to include("must be greater than or equal to 0")
     end
-
-    it "hpが必須である" do
-      enemy.hp = nil
-      expect(enemy).not_to be_valid
-      expect(enemy.errors[:hp]).to include("can't be blank")
-    end
-
-    it "hpが非負数である" do
-      enemy.hp = -1
-      expect(enemy).not_to be_valid
-      expect(enemy.errors[:hp]).to include("must be greater than or equal to 0")
-    end
-
-    it "attack_powerが必須である" do
-      enemy.attack_power = nil
-      expect(enemy).not_to be_valid
-      expect(enemy.errors[:attack_power]).to include("can't be blank")
-    end
-
-    it "attack_powerが非負数である" do
-      enemy.attack_power = -1
-      expect(enemy).not_to be_valid
-      expect(enemy.errors[:attack_power]).to include("must be greater than or equal to 0")
-    end
   end
 
   describe "#position" do
@@ -75,49 +51,74 @@ RSpec.describe Enemy, type: :model do
     end
   end
 
-  describe "#alive?" do
-    it "hpが0より大きい時にtrueを返す" do
-      enemy.hp = 50
-      expect(enemy).to be_alive
+  describe "#killed?" do
+    it "初期状態ではfalseを返す" do
+      expect(enemy.killed?).to be_falsey
     end
 
-    it "hpが0の時にfalseを返す" do
-      enemy.hp = 0
-      expect(enemy).not_to be_alive
+    it "killedがtrueの時にtrueを返す" do
+      enemy.killed = true
+      expect(enemy.killed?).to be_truthy
     end
 
-    it "hpが負数の時にfalseを返す" do
-      enemy.hp = -10
-      expect(enemy).not_to be_alive
-    end
-  end
-
-  describe "#defeated?" do
-    it "hpが0より大きい時にfalseを返す" do
-      enemy.hp = 50
-      expect(enemy).not_to be_defeated
-    end
-
-    it "hpが0の時にtrueを返す" do
-      enemy.hp = 0
-      expect(enemy).to be_defeated
-    end
-
-    it "hpが負数の時にtrueを返す" do
-      enemy.hp = -10
-      expect(enemy).to be_defeated
+    it "killedがfalseの時にfalseを返す" do
+      enemy.killed = false
+      expect(enemy.killed?).to be_falsey
     end
   end
 
-  describe "alive?とdefeated?の関係" do
-    it "hp > 0の時は反対の結果である" do
-      enemy.hp = 50
-      expect(enemy.alive?).to eq(!enemy.defeated?)
+  describe "ステート管理" do
+    it "normal?メソッドでnormal_stateを判定できる" do
+      enemy.state = :normal_state
+      expect(enemy.normal?).to be_truthy
     end
 
-    it "hp = 0の時は反対の結果である" do
-      enemy.hp = 0
-      expect(enemy.alive?).to eq(!enemy.defeated?)
+    it "angry?メソッドでangryステートを判定できる" do
+      enemy.state = :angry
+      expect(enemy.angry?).to be_truthy
+    end
+
+    it "kill?メソッドでkillステートを判定できる" do
+      enemy.state = :kill
+      expect(enemy.kill?).to be_truthy
+    end
+  end
+
+  describe "#can_attack?" do
+    it "both_killの場合にプレイヤー0に対してtrueを返す" do
+      enemy.enemy_kill = :both_kill
+      expect(enemy.can_attack?(0)).to be_truthy
+    end
+
+    it "both_killの場合にプレイヤー1に対してtrueを返す" do
+      enemy.enemy_kill = :both_kill
+      expect(enemy.can_attack?(1)).to be_truthy
+    end
+
+    it "player1_killの場合にプレイヤー0に対してtrueを返す" do
+      enemy.enemy_kill = :player1_kill
+      expect(enemy.can_attack?(0)).to be_truthy
+    end
+
+    it "player1_killの場合にプレイヤー1に対してfalseを返す" do
+      enemy.enemy_kill = :player1_kill
+      expect(enemy.can_attack?(1)).to be_falsey
+    end
+
+    it "player2_killの場合にプレイヤー0に対してfalseを返す" do
+      enemy.enemy_kill = :player2_kill
+      expect(enemy.can_attack?(0)).to be_falsey
+    end
+
+    it "player2_killの場合にプレイヤー1に対してtrueを返す" do
+      enemy.enemy_kill = :player2_kill
+      expect(enemy.can_attack?(1)).to be_truthy
+    end
+
+    it "no_killの場合に両プレイヤーに対してfalseを返す" do
+      enemy.enemy_kill = :no_kill
+      expect(enemy.can_attack?(0)).to be_falsey
+      expect(enemy.can_attack?(1)).to be_falsey
     end
   end
 end
