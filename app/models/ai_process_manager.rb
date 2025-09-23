@@ -230,7 +230,7 @@ class AiProcessManager
 
   # Check if process is alive and responsive
   def alive?
-    @thread&.alive? && @status != :stopped
+    @thread&.alive? == true && @status != :stopped
   end
 
   # Check if process timed out
