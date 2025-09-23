@@ -95,22 +95,62 @@ Smalruby甲子園では、Smalruby3フレームワークベースのAIコード�
 
 **Koshien APIメソッド:**
 
+**使用回数に制限がある命令:**
 - `koshien.connect_game(name:)` - ゲーム接続
 - `koshien.get_map_area(position)` - マップ探索
 - `koshien.move_to(position)` - 指定位置への移動
-- `koshien.calc_route(result:, src:, dst:, except_cells:)` - 経路計算
-- `koshien.locate_objects(result:, cent:, sq_size:, objects:)` - オブジェクト探索
+- `koshien.set_dynamite(position)` - ダイナマイト設置
+- `koshien.set_bomb(position)` - 爆弾設置
 - `koshien.turn_over` - ターン終了
-- `koshien.player` - 自分の位置取得
-- `koshien.goal` - ゴール位置取得
+
+**使用回数の制限がない命令:**
+- `koshien.position(x, y)` - 座標変換（x座標、y座標を"x:y"形式に変換）
+- `koshien.calc_route(result:, src:, dst:, except_cells:)` - 経路計算
+- `koshien.map(position)` - 指定座標のマップ情報取得
+- `koshien.map_all` - 全体のマップ情報取得
+- `koshien.map_from(position, from)` - マップ情報から指定座標の情報を参照
+- `koshien.locate_objects(result:, cent:, sq_size:, objects:)` - オブジェクト探索
+- `koshien.position_of_x(position)` - 座標からx座標を取得
+- `koshien.position_of_y(position)` - 座標からy座標を取得
+
+**位置情報取得:**
+- `koshien.player` - 自分の座標取得
+- `koshien.player_x` - 自分のx座標取得
+- `koshien.player_y` - 自分のy座標取得
+- `koshien.other_player` - 相手の座標取得
+- `koshien.other_player_x` - 相手のx座標取得
+- `koshien.other_player_y` - 相手のy座標取得
+- `koshien.enemy` - 妨害キャラクターの座標取得
+- `koshien.enemy_x` - 妨害キャラクターのx座標取得
+- `koshien.enemy_y` - 妨害キャラクターのy座標取得
+- `koshien.goal` - ゴール座標取得
+- `koshien.goal_x` - ゴールのx座標取得
+- `koshien.goal_y` - ゴールのy座標取得
+
+**その他:**
+- `koshien.object(name)` - マップ情報の種類に対応した値を取得
+- `koshien.set_message(message)` - メッセージ表示
 
 **AIコードの例:**
 
 ```ruby
 require "smalruby3"
 
+Stage.new(
+  "Stage",
+  lists: [
+    {
+      name: "最短経路" # list("$最短経路")
+    },
+    {
+      name: "通らない座標" # list("$通らない座標")
+    }
+  ]
+) do
+end
+
 Sprite.new(
-  "スプライト1"
+  "スプライト1",
 ) do
   def self.減点アイテムを避けながらゴールにむかって1マス進む
     koshien.locate_objects(result: list("$通らない座標"), objects: "ABCD")
@@ -123,12 +163,45 @@ Sprite.new(
   end
 
   koshien.connect_game(name: "player1")
+
   koshien.get_map_area("2:2")
   koshien.get_map_area("7:2")
   koshien.turn_over
 
+  koshien.get_map_area("12:2")
+  koshien.get_map_area("16:2")
+  koshien.turn_over
+
+  koshien.get_map_area("2:7")
+  koshien.get_map_area("7:7")
+  koshien.turn_over
+
+  koshien.get_map_area("12:7")
+  koshien.get_map_area("16:7")
+  koshien.turn_over
+
+  koshien.get_map_area("2:12")
+  koshien.get_map_area("7:12")
+  koshien.turn_over
+
+  koshien.get_map_area("12:12")
+  koshien.get_map_area("16:12")
+  koshien.turn_over
+
+  koshien.get_map_area("2:16")
+  koshien.get_map_area("7:16")
+  koshien.turn_over
+
+  koshien.get_map_area("12:16")
+  koshien.get_map_area("16:16")
+  koshien.turn_over
+
   loop do
     koshien.get_map_area(koshien.player)
+    減点アイテムを避けながらゴールにむかって1マス進む
+    koshien.turn_over
+
+    koshien.get_map_area(koshien.other_player)
     減点アイテムを避けながらゴールにむかって1マス進む
     koshien.turn_over
   end
