@@ -38,6 +38,7 @@ AIプロセス起動時に送信される初期化情報：
     "round_number": 1,
     "player_index": 0,
     "player_ai_id": "456",
+    "rand_seed": 12345,
     "game_map": {
       "width": 15,
       "height": 15,
@@ -100,17 +101,26 @@ AIプロセス起動時に送信される初期化情報：
         "killed": false
       }
     ],
-    "explored_map_data": {
-      "2:2": {
-        "terrain": 0,
-        "items": null,
-        "players": [],
-        "enemies": []
-      }
-    },
-    "items": {
-      "5:5": { "type": "positive", "index": 1 },
-      "10:3": { "type": "negative", "index": 6 }
+    "visible_map": {
+      "width": 15,
+      "height": 15,
+      "map_data": [
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, "a", 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "A", 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]
+      ]
     }
   }
 }
@@ -126,7 +136,7 @@ AIプロセスからturn_overアクションを受信した後の確認：
   "timestamp": "2025-09-24T01:30:05Z",
   "data": {
     "turn_number": 1,
-    "actions_processed": 3,
+    "actions_processed": 2,
     "next_turn_will_start": true
   }
 }
@@ -168,88 +178,68 @@ AIプロセス起動時に送信する準備完了通知：
 }
 ```
 
-### 2. アクションメッセージ
+### 2. ターン終了メッセージ
 
-ゲーム内で実行するアクションの指示：
-
-#### 移動アクション（方向指定）
-```json
-{
-  "type": "action",
-  "timestamp": "2025-09-24T01:30:02Z",
-  "data": {
-    "action_type": "move",
-    "direction": "up"
-  }
-}
-```
-
-#### 移動アクション（座標指定）
-```json
-{
-  "type": "action",
-  "timestamp": "2025-09-24T01:30:02Z",
-  "data": {
-    "action_type": "move",
-    "target_x": 1,
-    "target_y": 2
-  }
-}
-```
-
-#### アイテム使用アクション
-```json
-{
-  "type": "action",
-  "timestamp": "2025-09-24T01:30:03Z",
-  "data": {
-    "action_type": "use_item",
-    "item": "dynamite",
-    "position": { "x": 2, "y": 3 }
-  }
-}
-```
-
-#### 探索アクション
-```json
-{
-  "type": "action",
-  "timestamp": "2025-09-24T01:30:04Z",
-  "data": {
-    "action_type": "explore",
-    "target_position": { "x": 5, "y": 5 },
-    "area_size": 5
-  }
-}
-```
-
-#### 待機アクション
-```json
-{
-  "type": "action",
-  "timestamp": "2025-09-24T01:30:05Z",
-  "data": {
-    "action_type": "wait"
-  }
-}
-```
-
-### 3. ターン終了メッセージ
-
-ターンの終了を通知：
+ターンの終了と実行するアクションを通知（最大2つのアクション）：
 
 ```json
 {
   "type": "turn_over",
   "timestamp": "2025-09-24T01:30:05Z",
   "data": {
-    "actions_taken": 3,
-    "final_position": { "x": 1, "y": 0 }
+    "actions": [
+      {
+        "action_type": "move",
+        "direction": "right"
+      },
+      {
+        "action_type": "explore",
+        "target_position": { "x": 5, "y": 5 },
+        "area_size": 5
+      }
+    ]
   }
 }
 ```
 
-### 4. デバッグメッセージ
+#### アクション例
+
+##### 移動アクション（方向指定）
+```json
+{
+  "action_type": "move",
+  "direction": "up"
+}
+```
+
+##### 移動アクション（座標指定）
+```json
+{
+  "action_type": "move",
+  "target_x": 1,
+  "target_y": 2
+}
+```
+
+##### アイテム使用アクション
+```json
+{
+  "action_type": "use_item",
+  "item": "dynamite",
+  "position": { "x": 2, "y": 3 }
+}
+```
+
+##### 探索アクション
+```json
+{
+  "action_type": "explore",
+  "target_position": { "x": 5, "y": 5 },
+  "area_size": 5
+}
+```
+
+### 3. デバッグメッセージ
 
 デバッグ情報の出力：
 
@@ -268,7 +258,7 @@ AIプロセス起動時に送信する準備完了通知：
 }
 ```
 
-### 5. エラーメッセージ
+### 4. エラーメッセージ
 
 実行時エラーの報告：
 
@@ -302,10 +292,9 @@ AIプロセス → AiEngine: ready メッセージ
 ゲームループ（最大50ターン）:
   AiEngine → AIプロセス: turn_start メッセージ
 
-  アクションループ:
-    AIプロセス → AiEngine: action メッセージ (複数回可能)
+  AIプロセス処理:
     AIプロセス → AiEngine: debug メッセージ (任意)
-    AIプロセス → AiEngine: turn_over メッセージ
+    AIプロセス → AiEngine: turn_over メッセージ (最大2つのアクションを含む)
 
   AiEngine → AIプロセス: turn_end_confirm メッセージ
 ```
@@ -340,7 +329,7 @@ AIプロセスが5秒間出力を行わない場合：
 実行不可能なアクションを受信した場合：
 
 1. 無効なアクションを無視
-2. デフォルトアクション（wait）を適用
+2. そのターンは何も実行しない
 3. エラーログを記録
 
 ## データ型仕様
@@ -354,7 +343,6 @@ AIプロセスが5秒間出力を行わない場合：
 - `"move"`: 移動
 - `"use_item"`: アイテム使用
 - `"explore"`: 探索
-- `"wait"`: 待機
 
 ### アイテムタイプ
 - `"dynamite"`: ダイナマイト
@@ -415,14 +403,12 @@ AiEngine → AIプロセス: turn_start (turn_number: 1)
 
 AIプロセス → AiEngine:
 {
-  "type": "action",
-  "data": { "action_type": "move", "direction": "right" }
-}
-
-AIプロセス → AiEngine:
-{
   "type": "turn_over",
-  "data": { "actions_taken": 1 }
+  "data": {
+    "actions": [
+      { "action_type": "move", "direction": "right" }
+    ]
+  }
 }
 
 // ターン2（左に移動）
@@ -430,14 +416,12 @@ AiEngine → AIプロセス: turn_start (turn_number: 2)
 
 AIプロセス → AiEngine:
 {
-  "type": "action",
-  "data": { "action_type": "move", "direction": "left" }
-}
-
-AIプロセス → AiEngine:
-{
   "type": "turn_over",
-  "data": { "actions_taken": 1 }
+  "data": {
+    "actions": [
+      { "action_type": "move", "direction": "left" }
+    ]
+  }
 }
 ```
 
