@@ -177,6 +177,8 @@ module Smalruby3
       })
     end
 
+    public
+
     def send_turn_over
       actions = get_actions
       send_message({
@@ -187,6 +189,30 @@ module Smalruby3
         }
       })
       clear_actions
+    end
+
+    # Wait for turn processing to complete
+    def wait_for_turn_completion
+      loop do
+        message = read_message
+        return false unless message
+
+        case message["type"]
+        when "turn_end_confirm"
+          handle_turn_end_confirm(message["data"])
+          return true # Turn completed, continue to next turn
+        when "game_end"
+          handle_game_end(message["data"])
+          exit(0) # Game finished, exit script
+        when "turn_start"
+          # New turn started, update state and return
+          handle_turn_start(message["data"])
+          return true
+        else
+          send_error_message("Unexpected message type during turn completion: #{message["type"]}")
+          return false
+        end
+      end
     end
 
     def read_message
@@ -212,8 +238,9 @@ module Smalruby3
     end
 
     def in_json_mode?
-      # Check if we're running under JSON protocol
-      ENV["KOSHIEN_JSON_MODE"] == "true" || $stdin.tty? == false
+      # JSON mode is now the default behavior
+      # Only disable if explicitly set to false
+      ENV["KOSHIEN_JSON_MODE"] != "false"
     end
 
     public
@@ -293,8 +320,8 @@ module Smalruby3
     def turn_over
       if in_json_mode?
         json_adapter.send_turn_over
-        # Exit the current script execution
-        exit(0)
+        # Wait for turn processing to complete before returning control to script
+        json_adapter.wait_for_turn_completion
       else
         # Original stub behavior
         log("Turn over")
