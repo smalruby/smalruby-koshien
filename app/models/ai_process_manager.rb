@@ -115,6 +115,7 @@ class AiProcessManager
       }
     }
 
+    Rails.logger.debug "DEBUG AiProcessManager start_turn: sending message with current_player=#{current_player.inspect}"
     send_message(turn_message)
     @status = :turn_active
     true
@@ -195,28 +196,38 @@ class AiProcessManager
   def stop
     return unless alive?
 
+    Rails.logger.debug "Stopping AI process PID=#{@process_pid}"
+
     begin
+      # Close stdin first to signal the process
       @stdin&.close
-      @stdout&.close
-      @stderr&.close
 
       # Wait for process to terminate gracefully
       if @thread&.alive?
         @thread.join(1) # Wait 1 second
         if @thread.alive?
           # Force kill if still alive
-          Process.kill("TERM", @process_pid)
-          @thread.join(1)
-          if @thread.alive?
-            Process.kill("KILL", @process_pid)
-            Rails.logger.warn "AI Process force killed: PID=#{@process_pid}"
-          else
-            Rails.logger.info "AI Process terminated: PID=#{@process_pid}"
+          begin
+            Process.kill("TERM", @process_pid)
+            @thread.join(1)
+            if @thread.alive?
+              Process.kill("KILL", @process_pid)
+              Rails.logger.warn "AI Process force killed: PID=#{@process_pid}"
+            else
+              Rails.logger.info "AI Process terminated: PID=#{@process_pid}"
+            end
+          rescue Errno::ESRCH
+            # Process already died, this is fine
+            Rails.logger.debug "AI Process already terminated: PID=#{@process_pid}"
           end
         else
           Rails.logger.info "AI Process terminated gracefully: PID=#{@process_pid}"
         end
       end
+
+      # Close remaining streams
+      @stdout&.close
+      @stderr&.close
     rescue => e
       Rails.logger.error "Error stopping AI process: #{e.message}"
     ensure

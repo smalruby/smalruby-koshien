@@ -31,15 +31,15 @@ def load_csv_map(file_path)
   end
 end
 
-def find_goal_position(players_data)
-  players_data.each_with_index do |row, y|
+def find_goal_position(map_data)
+  map_data.each_with_index do |row, y|
     row.each_with_index do |cell, x|
-      if cell == 1
-        return {x: x, y: y}
+      if cell == 3  # MAP_GOAL
+        return {"x" => x, "y" => y}
       end
     end
   end
-  {x: 16, y: 16} # デフォルト位置
+  {"x" => 16, "y" => 16} # デフォルト位置
 end
 
 preset_maps = []
@@ -52,8 +52,8 @@ map_dirs.each do |map_dir|
 
   begin
     map_data = load_csv_map("#{map_dir}/map.dat")
-    players_data = load_csv_map("#{map_dir}/players.dat")
-    goal_position = find_goal_position(players_data)
+    load_csv_map("#{map_dir}/players.dat")
+    goal_position = find_goal_position(map_data)
 
     preset_maps << {
       name: "2024サンプルマップ#{map_number}",

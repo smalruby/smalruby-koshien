@@ -14,6 +14,7 @@ module Smalruby3
       @game_state = nil
       @player_name = nil
       @initialized = false
+      @current_position = {x: 0, y: 0}  # Track position locally as fallback
     end
 
     # Setup JSON communication with AiProcessManager
@@ -32,6 +33,15 @@ module Smalruby3
         @game_state = message["data"]
         @rand_seed = @game_state["rand_seed"]
         srand(@rand_seed) if @rand_seed
+
+        # Initialize position from initial_position if available
+        if @game_state["initial_position"]
+          @current_position = {
+            x: @game_state["initial_position"]["x"],
+            y: @game_state["initial_position"]["y"]
+          }
+          warn "DEBUG: Initialized @current_position from game state: #{@current_position.inspect}"
+        end
 
         # Store initialization success but don't send ready message yet
         # Ready message will be sent when connect_game is called
@@ -79,8 +89,26 @@ module Smalruby3
 
     # Game state accessors
     def current_player_position
-      return {x: 0, y: 0} unless @current_turn_data
-      @current_turn_data["current_player"]["position"] || {x: 0, y: 0}
+      # First try to get position from current turn data
+      if @current_turn_data && @current_turn_data["current_player"]
+        current_player = @current_turn_data["current_player"]
+        warn "DEBUG current_player_position: using turn data current_player=#{current_player.inspect}"
+
+        # Handle both possible data structures
+        if current_player["position"]
+          result = current_player["position"]
+          warn "DEBUG current_player_position: using position=#{result.inspect}"
+          return result
+        elsif current_player["x"] && current_player["y"]
+          result = {x: current_player["x"], y: current_player["y"]}
+          warn "DEBUG current_player_position: using x/y=#{result.inspect}"
+          return result
+        end
+      end
+
+      # Fallback to locally tracked position
+      warn "DEBUG current_player_position: using fallback @current_position=#{@current_position.inspect}"
+      @current_position
     end
 
     def other_players
@@ -134,6 +162,19 @@ module Smalruby3
     def handle_turn_start(data)
       @current_turn_data = data
       @current_turn = data["turn_number"]
+
+      # Debug: log turn data structure
+      warn "DEBUG handle_turn_start: turn_data=#{data.inspect}"
+      if data["current_player"]
+        warn "DEBUG current_player: #{data["current_player"].inspect}"
+
+        # Update local position tracking when we receive turn data
+        current_player = data["current_player"]
+        if current_player && current_player["x"] && current_player["y"]
+          @current_position = {x: current_player["x"], y: current_player["y"]}
+          warn "DEBUG handle_turn_start: updated @current_position to #{@current_position.inspect}"
+        end
+      end
 
       # Clear previous actions
       clear_actions
@@ -220,6 +261,14 @@ module Smalruby3
       end
     end
 
+    # Update position when movements are planned (fallback position tracking)
+    def track_movement_action(target_x, target_y)
+      # Update the fallback position to track intended movements
+      # This helps when turn data doesn't arrive properly
+      @current_position = {x: target_x, y: target_y}
+      warn "DEBUG track_movement_action: updated @current_position to #{@current_position.inspect}"
+    end
+
     def read_message
       line = $stdin.gets
       return nil unless line
@@ -284,6 +333,8 @@ module Smalruby3
         if position.is_a?(String) && position.include?(":")
           x, y = position.split(":").map(&:to_i)
           json_adapter.add_action({action_type: "move", target_x: x, target_y: y})
+          # Track the intended movement for fallback position tracking
+          json_adapter.track_movement_action(x, y)
         end
       else
         # Original stub behavior

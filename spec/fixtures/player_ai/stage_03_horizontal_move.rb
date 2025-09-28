@@ -1,11 +1,11 @@
+require "smalruby3"
+
 # 段階(3): 最後まで左右に往復するだけ
 #
 # 成功条件:
 # - 50ターンまでターンが進むこと
 # - 命令に従って各ターンでPlayerのx座標が+1, -1, +1, -1と変化すること
 # - 移動した分の得点が加算されること
-
-require "smalruby3"
 
 Stage.new(
   "Stage",
@@ -16,7 +16,7 @@ end
 Sprite.new(
   "スプライト1"
 ) do
-  koshien.connect_game(name: "horizontal_move_player")
+  koshien.connect_game(name: "h_move")
 
   # 50ターンまで左右に往復移動
   50.times do |turn|

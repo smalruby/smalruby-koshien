@@ -1,11 +1,11 @@
+require "smalruby3"
+
 # 段階(5): 最後まで同じ場所を探索するだけ
 #
 # 成功条件:
 # - 50ターンまでターンが進むこと
 # - 最初から最後までPlayerの位置が変わらないこと
 # - 各ターンで、マップ情報の探索結果を踏まえた情報を、AiEngineからAiプロセスの標準入力にわたすこと
-
-require "smalruby3"
 
 Stage.new(
   "Stage",
@@ -16,7 +16,7 @@ end
 Sprite.new(
   "スプライト1"
 ) do
-  koshien.connect_game(name: "explore_local_player")
+  koshien.connect_game(name: "local_explore")
 
   # 50ターンまで同じ場所を探索するだけ
   50.times do

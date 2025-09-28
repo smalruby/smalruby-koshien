@@ -40,6 +40,9 @@ class GameEngine
         success: false,
         error: e.message
       }
+    ensure
+      # Clean up temporary files
+      cleanup_temp_files
     end
   end
 
@@ -254,6 +257,9 @@ class GameEngine
         Rails.logger.error "AI process execution failed for player #{player.id}: #{e.class} - #{e.message}"
         Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
 
+        # Ensure AI process is stopped even on error
+        ai_manager&.stop
+
         # Mark player as timeout
         player.update!(status: :timeout)
 
@@ -366,12 +372,28 @@ class GameEngine
   end
 
   def find_start_positions(game_map)
-    # TODO: Parse map data to find start positions
-    # For now, return default positions that avoid walls
-    [
-      {x: 0, y: 0},
-      {x: 2, y: 2}
-    ]
+    # Find valid starting positions by scanning the map for empty spaces
+    map_data = game_map.map_data
+    valid_positions = []
+
+    # Scan the map for empty spaces (MAP_BLANK = 0)
+    map_data.each_with_index do |row, y|
+      row.each_with_index do |cell, x|
+        if cell == MAP_BLANK  # Empty space
+          valid_positions << {x: x, y: y}
+        end
+      end
+    end
+
+    # Return first two valid positions, or fallback positions if not enough found
+    if valid_positions.length >= 2
+      [valid_positions[0], valid_positions[1]]
+    elsif valid_positions.length == 1
+      [valid_positions[0], {x: 1, y: 1}]  # Fallback for second player
+    else
+      # Emergency fallback - use positions that are most likely to be valid
+      [{x: 1, y: 1}, {x: 2, y: 2}]
+    end
   end
 
   def find_enemy_positions(game_map)
@@ -425,13 +447,19 @@ class GameEngine
 
   def build_turn_data(player)
     # Build turn data for AiProcessManager turn execution
-    {
+    api_info = player.api_info
+    Rails.logger.debug "DEBUG build_turn_data: player.api_info = #{api_info.inspect}"
+
+    turn_data = {
       turn_number: @current_round.game_turns.count + 1,
-      current_player: player.api_info,
+      current_player: api_info,
       other_players: @current_round.players.where.not(id: player.id).map(&:api_info),
       enemies: @current_round.enemies.map(&:api_info),
       visible_map: build_visible_map(player)
     }
+
+    Rails.logger.debug "DEBUG build_turn_data: turn_data = #{turn_data.inspect}"
+    turn_data
   end
 
   def build_visible_map(player)
@@ -451,8 +479,14 @@ class GameEngine
     temp_dir = Rails.root.join("tmp", "ai_scripts")
     FileUtils.mkdir_p(temp_dir)
 
-    script_path = temp_dir.join("player_#{player.id}_ai.rb")
+    # Use unique timestamp-based filename to prevent conflicts and enable cleanup
+    timestamp = Time.current.strftime("%Y%m%d%H%M%S")
+    script_path = temp_dir.join("player_#{player.id}_#{timestamp}_ai.rb")
     File.write(script_path, player.player_ai.code)
+
+    # Store script path for cleanup
+    @temp_script_paths ||= []
+    @temp_script_paths << script_path.to_s
 
     script_path.to_s
   end
@@ -474,5 +508,18 @@ class GameEngine
     # TODO: Generate random item locations based on ITEM_QUANTITIES
     # For now, return empty hash
     {}
+  end
+
+  def cleanup_temp_files
+    return unless @temp_script_paths
+
+    @temp_script_paths.each do |script_path|
+      File.delete(script_path) if File.exist?(script_path)
+      Rails.logger.debug "Cleaned up temp file: #{script_path}"
+    rescue => e
+      Rails.logger.warn "Failed to clean up temp file #{script_path}: #{e.message}"
+    end
+
+    @temp_script_paths.clear
   end
 end

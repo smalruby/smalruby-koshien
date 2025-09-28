@@ -1,11 +1,11 @@
+require "smalruby3"
+
 # 段階(6): 最後まで全領域を順に探索するだけ
 #
 # 成功条件:
 # - 50ターンまでターンが進むこと
 # - 最初から最後までPlayerの位置が変わらないこと
 # - 各ターンで、マップ情報の探索結果を踏まえた情報を、AiEngineからAiプロセスの標準入力にわたすこと
-
-require "smalruby3"
 
 Stage.new(
   "Stage",
@@ -20,7 +20,7 @@ end
 Sprite.new(
   "スプライト1"
 ) do
-  koshien.connect_game(name: "explore_all_player")
+  koshien.connect_game(name: "all_explore")
 
   # 探索する座標のリストを準備
   explore_positions = [
