@@ -1,9 +1,45 @@
 require "rails_helper"
 
 RSpec.describe BattleJob, type: :job do
+  let(:valid_ai_code_1) do
+    <<~RUBY
+      require "smalruby3"
+
+      Stage.new("Stage", lists: []) do
+      end
+
+      Sprite.new("Player1") do
+        koshien.connect_game(name: "test_player_1")
+
+        10.times do
+          current_x = koshien.player_x
+          koshien.move_to(koshien.position(current_x + 1, koshien.player_y))
+          koshien.turn_over
+        end
+      end
+    RUBY
+  end
+
+  let(:valid_ai_code_2) do
+    <<~RUBY
+      require "smalruby3"
+
+      Stage.new("Stage", lists: []) do
+      end
+
+      Sprite.new("Player2") do
+        koshien.connect_game(name: "test_player_2")
+
+        5.times do
+          koshien.turn_over
+        end
+      end
+    RUBY
+  end
+
   let!(:game_map) { create(:game_map) }
-  let!(:first_player_ai) { create(:player_ai, :preset, code: "move_right") }
-  let!(:second_player_ai) { create(:player_ai, :preset, code: "wait") }
+  let!(:first_player_ai) { create(:player_ai, :preset, code: valid_ai_code_1) }
+  let!(:second_player_ai) { create(:player_ai, :preset, code: valid_ai_code_2) }
   let!(:game) do
     create(:game,
       game_map: game_map,
