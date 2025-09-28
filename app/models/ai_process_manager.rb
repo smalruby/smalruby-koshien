@@ -136,6 +136,27 @@ class AiProcessManager
       when "debug"
         Rails.logger.debug "AI Debug: #{message.dig("data", "message")}"
         # Continue waiting for turn_over
+      when "map_area_request"
+        # Handle map area request from AI
+        Rails.logger.debug "DEBUG: Received map_area_request: #{message.inspect}"
+        x = message.dig("data", "x")
+        y = message.dig("data", "y")
+        area_size = message.dig("data", "area_size") || 5
+        Rails.logger.debug "DEBUG: Processing map area request for x=#{x}, y=#{y}, area_size=#{area_size}"
+
+        map_area_data = get_map_area_data(x, y, area_size)
+        Rails.logger.debug "DEBUG: Generated map area data: #{map_area_data.inspect}"
+
+        # Send response back to AI
+        response = {
+          type: "map_area_response",
+          timestamp: Time.now.utc.iso8601,
+          data: map_area_data
+        }
+        Rails.logger.debug "DEBUG: Sending map_area_response: #{response.inspect}"
+        send_message(response)
+        Rails.logger.debug "DEBUG: map_area_response sent, continuing to wait for turn_over"
+        # Continue waiting for turn_over
       when "error"
         Rails.logger.error "AI Error: #{message.dig("data", "message")}"
         # Continue waiting for turn_over
@@ -325,5 +346,55 @@ class AiProcessManager
       @status = :failed
       nil
     end
+  end
+
+  private
+
+  # Get map area data for the specified coordinates
+  # Based on the original smalruby-koshien implementation
+  def get_map_area_data(x, y, area_size = 5)
+    Rails.logger.debug "DEBUG: get_map_area_data called with x=#{x}, y=#{y}, area_size=#{area_size}"
+
+    # This is a simplified implementation that returns mock data
+    # In a full implementation, this would access the actual game state
+    # and return real map data based on the current game round
+
+    # For now, return mock data structure matching the expected format
+    half_size = area_size / 2
+    Rails.logger.debug "DEBUG: half_size=#{half_size}"
+
+    # Calculate the area bounds (5x5 around the target position)
+    start_x = [0, x - half_size].max
+    end_x = [16, x + half_size].min  # Assuming 17x17 map
+    start_y = [0, y - half_size].max
+    end_y = [16, y + half_size].min
+    Rails.logger.debug "DEBUG: bounds: start_x=#{start_x}, end_x=#{end_x}, start_y=#{start_y}, end_y=#{end_y}"
+
+    # Mock map data - in real implementation this would come from GameMap
+    map_area = []
+    (start_y..end_y).each do |map_y|
+      row = []
+      (start_x..end_x).each do |map_x|
+        # 0 = empty space, 2 = wall - mock data for now
+        cell_value = (map_x == 0 || map_x == 16 || map_y == 0 || map_y == 16) ? 2 : 0
+        row << cell_value
+      end
+      map_area << row
+    end
+    Rails.logger.debug "DEBUG: generated map_area: #{map_area.inspect}"
+
+    result = {
+      map: map_area,
+      center_x: x,
+      center_y: y,
+      start_x: start_x,
+      start_y: start_y,
+      end_x: end_x,
+      end_y: end_y,
+      other_player: nil,  # Would be calculated based on other player position
+      enemies: []  # Would be calculated based on enemy positions
+    }
+    Rails.logger.debug "DEBUG: returning result: #{result.inspect}"
+    result
   end
 end
