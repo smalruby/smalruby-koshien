@@ -100,8 +100,7 @@ RSpec.describe AiProcessManager, type: :model do
   end
 
   describe "#initialize_game" do
-    # Skip for now - JSON communication needs refinement
-    skip "sends initialization message and receives ready response" do
+    it "sends initialization message and receives ready response" do
       manager.start
       expect(manager.initialize_game(
         game_map: game_map,
@@ -112,6 +111,21 @@ RSpec.describe AiProcessManager, type: :model do
       )).to be true
 
       expect(manager.status).to eq(:ready)
+      expect(manager.player_name).to eq("wait_only_player")
+      manager.stop
+    end
+
+    it "preserves player name from connect_game call through JSON communication" do
+      manager.start
+      expect(manager.initialize_game(
+        game_map: game_map,
+        initial_position: initial_position,
+        initial_items: initial_items,
+        game_constants: game_constants,
+        rand_seed: rand_seed
+      )).to be true
+
+      # The player name should match what was set in connect_game in stage_02_wait_only.rb
       expect(manager.player_name).to eq("wait_only_player")
       manager.stop
     end
@@ -239,6 +253,21 @@ RSpec.describe AiProcessManager, type: :model do
         player_index: player_index,
         player_ai_id: player_ai_id
       )
+    end
+
+    it "preserves player name from connect_game in timeout scenario" do
+      timeout_manager.start
+      expect(timeout_manager.initialize_game(
+        game_map: game_map,
+        initial_position: initial_position,
+        initial_items: initial_items,
+        game_constants: game_constants,
+        rand_seed: rand_seed
+      )).to be true
+
+      # The player name should match what was set in connect_game in stage_01_timeout.rb
+      expect(timeout_manager.player_name).to eq("timeout_player")
+      timeout_manager.stop
     end
 
     # Skip for now - JSON communication needs refinement

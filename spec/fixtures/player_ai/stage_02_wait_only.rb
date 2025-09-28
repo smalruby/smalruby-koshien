@@ -7,15 +7,6 @@
 
 require "smalruby3"
 
-# JSON mode での通信開始
-if ENV["KOSHIEN_JSON_MODE"] == "true"
-  adapter = Smalruby3::KoshienJsonAdapter.instance
-  if adapter.setup_json_communication
-    adapter.run_game_loop
-  end
-  exit(0)
-end
-
 Stage.new(
   "Stage",
   lists: []

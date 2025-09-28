@@ -4,6 +4,7 @@ end
 require_relative "smalruby3/world"
 require_relative "smalruby3/sprite"
 require_relative "smalruby3/stage"
+require_relative "smalruby3/koshien"
 require_relative "smalruby3/koshien_json_adapter"
 
 include Smalruby3 # standard:disable Style/MixinUsage
