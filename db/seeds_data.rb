@@ -52,7 +52,7 @@ map_dirs.each do |map_dir|
 
   begin
     map_data = load_csv_map("#{map_dir}/map.dat")
-    players_data = load_csv_map("#{map_dir}/players.dat")
+    load_csv_map("#{map_dir}/players.dat")
     goal_position = find_goal_position(map_data)
 
     preset_maps << {
