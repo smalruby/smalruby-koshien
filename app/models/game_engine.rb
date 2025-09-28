@@ -40,6 +40,9 @@ class GameEngine
         success: false,
         error: e.message
       }
+    ensure
+      # Clean up temporary files
+      cleanup_temp_files
     end
   end
 
@@ -253,6 +256,9 @@ class GameEngine
       rescue => e
         Rails.logger.error "AI process execution failed for player #{player.id}: #{e.class} - #{e.message}"
         Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
+
+        # Ensure AI process is stopped even on error
+        ai_manager&.stop
 
         # Mark player as timeout
         player.update!(status: :timeout)
@@ -473,8 +479,14 @@ class GameEngine
     temp_dir = Rails.root.join("tmp", "ai_scripts")
     FileUtils.mkdir_p(temp_dir)
 
-    script_path = temp_dir.join("player_#{player.id}_ai.rb")
+    # Use unique timestamp-based filename to prevent conflicts and enable cleanup
+    timestamp = Time.current.strftime("%Y%m%d%H%M%S")
+    script_path = temp_dir.join("player_#{player.id}_#{timestamp}_ai.rb")
     File.write(script_path, player.player_ai.code)
+
+    # Store script path for cleanup
+    @temp_script_paths ||= []
+    @temp_script_paths << script_path.to_s
 
     script_path.to_s
   end
@@ -496,5 +508,18 @@ class GameEngine
     # TODO: Generate random item locations based on ITEM_QUANTITIES
     # For now, return empty hash
     {}
+  end
+
+  def cleanup_temp_files
+    return unless @temp_script_paths
+
+    @temp_script_paths.each do |script_path|
+      File.delete(script_path) if File.exist?(script_path)
+      Rails.logger.debug "Cleaned up temp file: #{script_path}"
+    rescue => e
+      Rails.logger.warn "Failed to clean up temp file #{script_path}: #{e.message}"
+    end
+
+    @temp_script_paths.clear
   end
 end
