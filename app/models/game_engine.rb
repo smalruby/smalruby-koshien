@@ -219,7 +219,13 @@ class GameEngine
         end
 
         # Wait for turn completion
+        Rails.logger.debug "Starting wait_for_turn_completion for player #{player.id} at #{Time.current}"
+        turn_start_time = Time.current
         result = ai_manager.wait_for_turn_completion
+        turn_elapsed_time = Time.current - turn_start_time
+
+        Rails.logger.debug "Turn completion result for player #{player.id}: success=#{result[:success]}, elapsed=#{turn_elapsed_time.round(3)}s, reason=#{result[:reason]}"
+
         if result[:success]
           # Confirm turn end
           ai_manager.confirm_turn_end(actions_processed: result[:actions].length)
@@ -236,7 +242,7 @@ class GameEngine
           ai_results << {
             player_id: player.id,
             success: false,
-            error: "AI process failed: #{result[:reason]}"
+            error: "AI process failed: #{result[:reason]} (elapsed: #{turn_elapsed_time.round(3)}s)"
           }
         end
 
@@ -396,10 +402,11 @@ class GameEngine
 
   def build_game_state_for_process(player)
     # Build game state for AiProcessManager initialization
+    map_size = game.game_map.size
     {
       game_map: {
-        width: game.game_map.width,
-        height: game.game_map.height,
+        width: map_size[:width],
+        height: map_size[:height],
         map_data: game.game_map.map_data,
         goal_position: game.game_map.goal_position
       },
@@ -409,10 +416,10 @@ class GameEngine
         bomb_left: player.bomb_left
       },
       game_constants: {
-        max_turns: MAX_TURNS_PER_ROUND,
+        max_turns: MAX_TURN,
         turn_timeout: TURN_DURATION
       },
-      rand_seed: @current_round.rand_seed || generate_rand_seed
+      rand_seed: generate_rand_seed
     }
   end
 
@@ -430,9 +437,10 @@ class GameEngine
   def build_visible_map(player)
     # Build visible map based on player's exploration
     # For now, return the full map - TODO: implement exploration-based visibility
+    map_size = game.game_map.size
     {
-      width: game.game_map.width,
-      height: game.game_map.height,
+      width: map_size[:width],
+      height: map_size[:height],
       map_data: game.game_map.map_data
     }
   end
