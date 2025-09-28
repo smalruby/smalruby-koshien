@@ -11,9 +11,15 @@ RSpec.describe BattleJob, type: :job do
       Sprite.new("Player1") do
         koshien.connect_game(name: "test_player_1")
 
-        10.times do
+        50.times do |turn|
           current_x = koshien.player_x
-          koshien.move_to(koshien.position(current_x + 1, koshien.player_y))
+          if turn.even?
+            # 偶数ターン: 右に移動
+            koshien.move_to(koshien.position(current_x + 1, koshien.player_y))
+          else
+            # 奇数ターン: 左に移動
+            koshien.move_to(koshien.position(current_x - 1, koshien.player_y))
+          end
           koshien.turn_over
         end
       end
@@ -30,7 +36,7 @@ RSpec.describe BattleJob, type: :job do
       Sprite.new("Player2") do
         koshien.connect_game(name: "test_player_2")
 
-        5.times do
+        50.times do
           koshien.turn_over
         end
       end
