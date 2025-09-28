@@ -33,10 +33,10 @@ module Smalruby3
         @rand_seed = @game_state["rand_seed"]
         srand(@rand_seed) if @rand_seed
 
-        # Send ready response after receiving initialize
-        player_name = extract_player_name_from_script
-        warn "DEBUG: Sending ready message with player_name=#{player_name.inspect}"
-        send_ready_message(player_name)
+        # Store initialization success but don't send ready message yet
+        # Ready message will be sent when connect_game is called
+        @initialization_received = true
+        warn "DEBUG: Initialization received, waiting for connect_game"
         true
       else
         warn "DEBUG: setup_json_communication failed - unexpected message type or nil"
@@ -257,15 +257,22 @@ module Smalruby3
         @player_name = name
 
         # Also store in KoshienJsonAdapter singleton to ensure it's preserved
-        json_adapter.instance_variable_set(:@player_name, name)
+        adapter = json_adapter
+        adapter.instance_variable_set(:@player_name, name)
 
         log("Connected to game as: #{name}")
 
         # Debug output
         warn "DEBUG connect_game: instance=#{object_id}, set @player_name=#{@player_name.inspect}"
-        warn "DEBUG connect_game: adapter instance=#{json_adapter.object_id}, set adapter @player_name=#{json_adapter.instance_variable_get(:@player_name).inspect}"
+        warn "DEBUG connect_game: adapter instance=#{adapter.object_id}, set adapter @player_name=#{adapter.instance_variable_get(:@player_name).inspect}"
 
-        # Player name will be sent in ready message during setup_json_communication
+        # Send ready message now that we have the player name
+        if adapter.instance_variable_get(:@initialization_received)
+          adapter.send(:send_ready_message, name)
+          warn "DEBUG connect_game: Sent ready message with player name: #{name}"
+        else
+          warn "DEBUG connect_game: Initialization not received yet, ready message will be sent later"
+        end
       else
         # Original stub behavior
         log(%(プレイヤー名を設定します: name="#{name}"))
