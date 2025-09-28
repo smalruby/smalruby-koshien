@@ -270,17 +270,21 @@ RSpec.describe AiProcessManager, type: :model do
       timeout_manager.stop
     end
 
-    it "defaults to JSON mode and implements turn_over API" do
-      # Test that JSON mode is now the default
-      koshien = Smalruby3::Koshien.instance
-      expect(koshien.send(:in_json_mode?)).to be true
-
+    it "implements turn_over API and supports JSON mode when enabled" do
       # Test that turn_over method exists and can be called
+      koshien = Smalruby3::Koshien.instance
       expect(koshien).to respond_to(:turn_over)
 
-      # Test that the turn_over implementation no longer immediately exits
-      # (This is verified by the stage files working correctly)
-      expect(true).to be true # Placeholder - actual test is that stage files work
+      # Test that JSON mode can be enabled explicitly
+      ENV["KOSHIEN_JSON_MODE"] = "true"
+      expect(koshien.send(:in_json_mode?)).to be true
+
+      # Test that JSON mode is enabled by default (when not explicitly set to "false")
+      ENV["KOSHIEN_JSON_MODE"] = nil
+      expect(koshien.send(:in_json_mode?)).to be true
+
+      # Clean up
+      ENV["KOSHIEN_JSON_MODE"] = nil
     end
 
     # Skip turn_over API test for now - requires full turn cycle implementation
