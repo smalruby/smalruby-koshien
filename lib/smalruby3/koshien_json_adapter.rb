@@ -23,16 +23,16 @@ module Smalruby3
       # Debug output
       warn "DEBUG setup_json_communication: instance=#{object_id}, @player_name=#{@player_name.inspect}"
 
-      # Send ready message - use stored player name from connect_game if available
-      player_name = extract_player_name_from_script
-      send_ready_message(player_name)
-
-      # Wait for initialization
+      # Wait for initialization message from AiProcessManager first
       message = read_message
       if message && message["type"] == "initialize"
         @game_state = message["data"]
         @rand_seed = @game_state["rand_seed"]
         srand(@rand_seed) if @rand_seed
+
+        # Send ready response after receiving initialize
+        player_name = extract_player_name_from_script
+        send_ready_message(player_name)
         true
       else
         false
@@ -238,9 +238,8 @@ module Smalruby3
     end
 
     def in_json_mode?
-      # JSON mode is now the default behavior
-      # Only disable if explicitly set to false
-      ENV["KOSHIEN_JSON_MODE"] != "false"
+      # JSON mode when explicitly enabled
+      ENV["KOSHIEN_JSON_MODE"] == "true"
     end
 
     public

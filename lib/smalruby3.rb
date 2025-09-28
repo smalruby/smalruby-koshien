@@ -9,9 +9,8 @@ require_relative "smalruby3/koshien_json_adapter"
 
 include Smalruby3 # standard:disable Style/MixinUsage
 
-# Initialize JSON communication (default behavior)
-# Only disable if explicitly set to false
-if ENV["KOSHIEN_JSON_MODE"] != "false"
+# Initialize JSON communication when explicitly enabled
+if ENV["KOSHIEN_JSON_MODE"] == "true"
   # Setup JSON communication adapter
   at_exit do
     # This ensures JSON communication is properly handled when the script ends
