@@ -72,7 +72,7 @@ class GameLogicDebugger
 
     # Select GameMap based on options or default
     map_name = @options[:map] || "2024サンプルマップ1"
-    @game_map = if map_name =~ /^\d+$/
+    @game_map = if /^\d+$/.match?(map_name)
       # If numeric, assume it's a map ID
       GameMap.find_by(id: map_name.to_i)
     else
@@ -83,25 +83,25 @@ class GameLogicDebugger
 
     # Select first PlayerAI based on options or default
     player1_name = @options[:player1] || "ゴール優先AI"
-    @first_player_ai = if player1_name =~ /^\d+$/
+    @first_player_ai = if /^\d+$/.match?(player1_name)
       # If numeric, assume it's a PlayerAI ID
       PlayerAi.find_by(id: player1_name.to_i)
     else
       # Otherwise, search by name (prioritize system AIs)
       PlayerAi.find_by(name: player1_name, author: "system") ||
-      PlayerAi.find_by(name: player1_name)
+        PlayerAi.find_by(name: player1_name)
     end
     raise "PlayerAI '#{player1_name}' not found" unless @first_player_ai
 
     # Select second PlayerAI based on options or default
     player2_name = @options[:player2] || "アイテム優先AI"
-    @second_player_ai = if player2_name =~ /^\d+$/
+    @second_player_ai = if /^\d+$/.match?(player2_name)
       # If numeric, assume it's a PlayerAI ID
       PlayerAi.find_by(id: player2_name.to_i)
     else
       # Otherwise, search by name (prioritize system AIs)
       PlayerAi.find_by(name: player2_name, author: "system") ||
-      PlayerAi.find_by(name: player2_name)
+        PlayerAi.find_by(name: player2_name)
     end
     raise "PlayerAI '#{player2_name}' not found" unless @second_player_ai
 
@@ -242,25 +242,29 @@ class GameLogicDebugger
     puts "Average Turn Duration: #{(@results[:execution_time] / rounds.sum { |r| r.game_turns.count }).round(4)}s" if rounds.any?
   end
 
-  def self.list_available_resources
-    puts "🗺️  Available GameMaps:"
-    GameMap.order(:id).each do |map|
-      puts "   ID: #{map.id.to_s.rjust(2)} - #{map.name}"
-    end
+  class << self
+    private
 
-    puts "\n🤖 Available PlayerAIs (System):"
-    PlayerAi.where(author: "system").order(:id).each do |ai|
-      puts "   ID: #{ai.id.to_s.rjust(2)} - #{ai.name}"
-    end
-
-    puts "\n👤 Available PlayerAIs (User):"
-    user_ais = PlayerAi.where.not(author: "system").order(:id)
-    if user_ais.any?
-      user_ais.each do |ai|
-        puts "   ID: #{ai.id.to_s.rjust(2)} - #{ai.name} (by #{ai.author})"
+    def list_available_resources
+      puts "🗺️  Available GameMaps:"
+      GameMap.order(:id).each do |map|
+        puts "   ID: #{map.id.to_s.rjust(2)} - #{map.name}"
       end
-    else
-      puts "   No user-created AIs found"
+
+      puts "\n🤖 Available PlayerAIs (System):"
+      PlayerAi.where(author: "system").order(:id).each do |ai|
+        puts "   ID: #{ai.id.to_s.rjust(2)} - #{ai.name}"
+      end
+
+      puts "\n👤 Available PlayerAIs (User):"
+      user_ais = PlayerAi.where.not(author: "system").order(:id)
+      if user_ais.any?
+        user_ais.each do |ai|
+          puts "   ID: #{ai.id.to_s.rjust(2)} - #{ai.name} (by #{ai.author})"
+        end
+      else
+        puts "   No user-created AIs found"
+      end
     end
   end
 end
