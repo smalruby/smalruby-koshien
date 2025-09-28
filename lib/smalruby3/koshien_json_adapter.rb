@@ -23,18 +23,23 @@ module Smalruby3
       # Debug output
       warn "DEBUG setup_json_communication: instance=#{object_id}, @player_name=#{@player_name.inspect}"
 
-      # Send ready message - use stored player name from connect_game if available
-      player_name = extract_player_name_from_script
-      send_ready_message(player_name)
-
-      # Wait for initialization
+      # Wait for initialization message from AiProcessManager first
+      warn "DEBUG: Waiting for initialize message from AiProcessManager..."
       message = read_message
+      warn "DEBUG: Received message: #{message.inspect}"
+
       if message && message["type"] == "initialize"
         @game_state = message["data"]
         @rand_seed = @game_state["rand_seed"]
         srand(@rand_seed) if @rand_seed
+
+        # Store initialization success but don't send ready message yet
+        # Ready message will be sent when connect_game is called
+        @initialization_received = true
+        warn "DEBUG: Initialization received, waiting for connect_game"
         true
       else
+        warn "DEBUG: setup_json_communication failed - unexpected message type or nil"
         false
       end
     end
@@ -177,6 +182,8 @@ module Smalruby3
       })
     end
 
+    public
+
     def send_turn_over
       actions = get_actions
       send_message({
@@ -187,6 +194,30 @@ module Smalruby3
         }
       })
       clear_actions
+    end
+
+    # Wait for turn processing to complete
+    def wait_for_turn_completion
+      loop do
+        message = read_message
+        return false unless message
+
+        case message["type"]
+        when "turn_end_confirm"
+          handle_turn_end_confirm(message["data"])
+          return true # Turn completed, continue to next turn
+        when "game_end"
+          handle_game_end(message["data"])
+          exit(0) # Game finished, exit script
+        when "turn_start"
+          # New turn started, update state and return
+          handle_turn_start(message["data"])
+          return true
+        else
+          send_error_message("Unexpected message type during turn completion: #{message["type"]}")
+          return false
+        end
+      end
     end
 
     def read_message
@@ -212,8 +243,9 @@ module Smalruby3
     end
 
     def in_json_mode?
-      # Check if we're running under JSON protocol
-      ENV["KOSHIEN_JSON_MODE"] == "true" || $stdin.tty? == false
+      # JSON mode is now the default behavior
+      # Only disable if explicitly set to false
+      ENV["KOSHIEN_JSON_MODE"] != "false"
     end
 
     public
@@ -225,15 +257,22 @@ module Smalruby3
         @player_name = name
 
         # Also store in KoshienJsonAdapter singleton to ensure it's preserved
-        json_adapter.instance_variable_set(:@player_name, name)
+        adapter = json_adapter
+        adapter.instance_variable_set(:@player_name, name)
 
         log("Connected to game as: #{name}")
 
         # Debug output
         warn "DEBUG connect_game: instance=#{object_id}, set @player_name=#{@player_name.inspect}"
-        warn "DEBUG connect_game: adapter instance=#{json_adapter.object_id}, set adapter @player_name=#{json_adapter.instance_variable_get(:@player_name).inspect}"
+        warn "DEBUG connect_game: adapter instance=#{adapter.object_id}, set adapter @player_name=#{adapter.instance_variable_get(:@player_name).inspect}"
 
-        # Player name will be sent in ready message during setup_json_communication
+        # Send ready message now that we have the player name
+        if adapter.instance_variable_get(:@initialization_received)
+          adapter.send(:send_ready_message, name)
+          warn "DEBUG connect_game: Sent ready message with player name: #{name}"
+        else
+          warn "DEBUG connect_game: Initialization not received yet, ready message will be sent later"
+        end
       else
         # Original stub behavior
         log(%(プレイヤー名を設定します: name="#{name}"))
@@ -293,8 +332,8 @@ module Smalruby3
     def turn_over
       if in_json_mode?
         json_adapter.send_turn_over
-        # Exit the current script execution
-        exit(0)
+        # Wait for turn processing to complete before returning control to script
+        json_adapter.wait_for_turn_completion
       else
         # Original stub behavior
         log("Turn over")
