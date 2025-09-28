@@ -111,7 +111,7 @@ RSpec.describe AiProcessManager, type: :model do
       )).to be true
 
       expect(manager.status).to eq(:ready)
-      expect(manager.player_name).to eq("wait_only_player")
+      expect(manager.player_name).to eq("wait_only")
       manager.stop
     end
 
@@ -126,7 +126,7 @@ RSpec.describe AiProcessManager, type: :model do
       )).to be true
 
       # The player name should match what was set in connect_game in stage_02_wait_only.rb
-      expect(manager.player_name).to eq("wait_only_player")
+      expect(manager.player_name).to eq("wait_only")
       manager.stop
     end
 
@@ -266,7 +266,7 @@ RSpec.describe AiProcessManager, type: :model do
       )).to be true
 
       # The player name should match what was set in connect_game in stage_01_timeout.rb
-      expect(timeout_manager.player_name).to eq("timeout_player")
+      expect(timeout_manager.player_name).to eq("timeout")
       timeout_manager.stop
     end
 
