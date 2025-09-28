@@ -65,12 +65,34 @@ class TurnProcessor
   end
 
   def extract_actions(ai_result)
-    if ai_result[:actions]
+    actions = if ai_result[:actions]
       ai_result[:actions]
     elsif ai_result[:action]
       [ai_result[:action]]
     else
       [{type: "wait"}]
+    end
+
+    # Normalize action format from JSON (string keys) to expected format (symbol keys)
+    actions.map do |action|
+      if action.is_a?(Hash)
+        normalized = {}
+        # Convert action_type to type
+        normalized[:type] = action["action_type"] || action[:action_type] || action["type"] || action[:type]
+
+        # Copy other relevant fields
+        normalized[:direction] = action["direction"] || action[:direction]
+        normalized[:target_x] = action["target_x"] || action[:target_x]
+        normalized[:target_y] = action["target_y"] || action[:target_y]
+        normalized[:item] = action["item"] || action[:item]
+        normalized[:target] = action["target"] || action[:target]
+        normalized[:position] = action["position"] || action[:position]
+        normalized[:area_size] = action["area_size"] || action[:area_size]
+
+        normalized
+      else
+        action
+      end
     end
   end
 

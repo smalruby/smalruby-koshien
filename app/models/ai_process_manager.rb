@@ -115,6 +115,7 @@ class AiProcessManager
       }
     }
 
+    Rails.logger.debug "DEBUG AiProcessManager start_turn: sending message with current_player=#{current_player.inspect}"
     send_message(turn_message)
     @status = :turn_active
     true
