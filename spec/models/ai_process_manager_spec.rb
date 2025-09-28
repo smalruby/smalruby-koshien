@@ -100,8 +100,7 @@ RSpec.describe AiProcessManager, type: :model do
   end
 
   describe "#initialize_game" do
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
+    # Skip for now - JSON communication needs refinement
     skip "sends initialization message and receives ready response" do
       manager.start
       expect(manager.initialize_game(
@@ -143,8 +142,7 @@ RSpec.describe AiProcessManager, type: :model do
   end
 
   describe "#start_turn and #wait_for_turn_completion" do
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
+    # Skip for now - JSON communication needs refinement
     skip "processes a complete turn cycle" do
       manager.start
       manager.initialize_game(
@@ -181,8 +179,7 @@ RSpec.describe AiProcessManager, type: :model do
   end
 
   describe "#end_game" do
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
+    # Skip for now - JSON communication needs refinement
     skip "sends game end message and stops process" do
       manager.start
       manager.initialize_game(
@@ -244,8 +241,7 @@ RSpec.describe AiProcessManager, type: :model do
       )
     end
 
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
+    # Skip for now - JSON communication needs refinement
     skip "handles timeout scenarios" do
       timeout_manager.start
       expect(timeout_manager.initialize_game(
@@ -274,8 +270,7 @@ RSpec.describe AiProcessManager, type: :model do
   end
 
   describe "JSON protocol compliance" do
-    # Skip for now - requires full JSON communication setup
-    # TODO: Implement proper JSON communication in AI scripts
+    # Skip for now - JSON communication needs refinement
     skip "follows the JSON protocol specification" do
       manager.start
       manager.initialize_game(

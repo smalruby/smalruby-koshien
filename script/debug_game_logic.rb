@@ -3,15 +3,20 @@
 
 # Debug script for testing game logic with preset AI and sample map
 require_relative "../config/environment"
+require "optparse"
 
 class GameLogicDebugger
-  def initialize
+  def initialize(options = {})
     @results = {}
+    @options = options
   end
 
   def run
     puts "🎮 Game Logic Debug Script"
     puts "=" * 50
+
+    # Display selected options
+    display_options
 
     # Clean up existing data
     cleanup_test_data
@@ -29,6 +34,15 @@ class GameLogicDebugger
     cleanup_test_data if ENV["CLEANUP"] != "false"
 
     puts "\n✅ Debug complete!"
+  end
+
+  def display_options
+    puts "\n📋 Selected Options:"
+    puts "   Map: #{@options[:map] || "2024サンプルマップ1 (default)"}"
+    puts "   Player 1: #{@options[:player1] || "ゴール優先AI (default)"}"
+    puts "   Player 2: #{@options[:player2] || "アイテム優先AI (default)"}"
+    puts "   Verbose: #{@options[:verbose] ? "enabled" : "disabled"}"
+    puts
   end
 
   private
@@ -56,16 +70,40 @@ class GameLogicDebugger
   def setup_test_data
     puts "\n🔧 Setting up test data..."
 
-    # Use preset GameMap (2024サンプルマップ1 which corresponds to game_map_01)
-    @game_map = GameMap.find_by(name: "2024サンプルマップ1")
-    raise "Preset GameMap '2024サンプルマップ1' not found" unless @game_map
+    # Select GameMap based on options or default
+    map_name = @options[:map] || "2024サンプルマップ1"
+    @game_map = if /^\d+$/.match?(map_name)
+      # If numeric, assume it's a map ID
+      GameMap.find_by(id: map_name.to_i)
+    else
+      # Otherwise, search by name
+      GameMap.find_by(name: map_name)
+    end
+    raise "GameMap '#{map_name}' not found" unless @game_map
 
-    # Use preset PlayerAIs (system AIs that use koshien.rb API)
-    @first_player_ai = PlayerAi.find_by(name: "ゴール優先AI", author: "system")
-    raise "Preset PlayerAI 'ゴール優先AI' not found" unless @first_player_ai
+    # Select first PlayerAI based on options or default
+    player1_name = @options[:player1] || "ゴール優先AI"
+    @first_player_ai = if /^\d+$/.match?(player1_name)
+      # If numeric, assume it's a PlayerAI ID
+      PlayerAi.find_by(id: player1_name.to_i)
+    else
+      # Otherwise, search by name (prioritize system AIs)
+      PlayerAi.find_by(name: player1_name, author: "system") ||
+        PlayerAi.find_by(name: player1_name)
+    end
+    raise "PlayerAI '#{player1_name}' not found" unless @first_player_ai
 
-    @second_player_ai = PlayerAi.find_by(name: "アイテム優先AI", author: "system")
-    raise "Preset PlayerAI 'アイテム優先AI' not found" unless @second_player_ai
+    # Select second PlayerAI based on options or default
+    player2_name = @options[:player2] || "アイテム優先AI"
+    @second_player_ai = if /^\d+$/.match?(player2_name)
+      # If numeric, assume it's a PlayerAI ID
+      PlayerAi.find_by(id: player2_name.to_i)
+    else
+      # Otherwise, search by name (prioritize system AIs)
+      PlayerAi.find_by(name: player2_name, author: "system") ||
+        PlayerAi.find_by(name: player2_name)
+    end
+    raise "PlayerAI '#{player2_name}' not found" unless @second_player_ai
 
     # Create game
     @game = Game.create!(
@@ -77,9 +115,24 @@ class GameLogicDebugger
     )
 
     puts "   ✓ Using game map: #{@game_map.name} (ID: #{@game_map.id})"
-    puts "   ✓ Using AI 1: #{@first_player_ai.name}"
-    puts "   ✓ Using AI 2: #{@second_player_ai.name}"
+    puts "   ✓ Using AI 1: #{@first_player_ai.name} (ID: #{@first_player_ai.id})"
+    puts "   ✓ Using AI 2: #{@second_player_ai.name} (ID: #{@second_player_ai.id})"
     puts "   ✓ Created game: #{@game.id}"
+
+    if @options[:verbose]
+      puts "\n   📋 Detailed Information:"
+      puts "      Game Map Details:"
+      puts "         Size: #{@game_map.map_data.size}x#{@game_map.map_data[0]&.size}"
+      puts "         Goal: (#{@game_map.goal_position["x"]}, #{@game_map.goal_position["y"]})"
+
+      puts "      Player AI 1 Details:"
+      puts "         Code length: #{@first_player_ai.code.length} characters"
+      puts "         Author: #{@first_player_ai.author}"
+
+      puts "      Player AI 2 Details:"
+      puts "         Code length: #{@second_player_ai.code.length} characters"
+      puts "         Author: #{@second_player_ai.author}"
+    end
   end
 
   def run_battle
@@ -188,10 +241,75 @@ class GameLogicDebugger
     puts "Total Events: #{GameEvent.joins(game_turn: :game_round).where(game_rounds: {game_id: @game.id}).count}"
     puts "Average Turn Duration: #{(@results[:execution_time] / rounds.sum { |r| r.game_turns.count }).round(4)}s" if rounds.any?
   end
+
+  class << self
+    private
+
+    def list_available_resources
+      puts "🗺️  Available GameMaps:"
+      GameMap.order(:id).each do |map|
+        puts "   ID: #{map.id.to_s.rjust(2)} - #{map.name}"
+      end
+
+      puts "\n🤖 Available PlayerAIs (System):"
+      PlayerAi.where(author: "system").order(:id).each do |ai|
+        puts "   ID: #{ai.id.to_s.rjust(2)} - #{ai.name}"
+      end
+
+      puts "\n👤 Available PlayerAIs (User):"
+      user_ais = PlayerAi.where.not(author: "system").order(:id)
+      if user_ais.any?
+        user_ais.each do |ai|
+          puts "   ID: #{ai.id.to_s.rjust(2)} - #{ai.name} (by #{ai.author})"
+        end
+      else
+        puts "   No user-created AIs found"
+      end
+    end
+  end
 end
+
+# Parse command line options
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{$0} [options]"
+
+  opts.on("-m", "--map MAP", "GameMap name or ID (default: 2024サンプルマップ1)") do |map|
+    options[:map] = map
+  end
+
+  opts.on("-1", "--player1 AI", "First PlayerAI name or ID (default: ゴール優先AI)") do |ai|
+    options[:player1] = ai
+  end
+
+  opts.on("-2", "--player2 AI", "Second PlayerAI name or ID (default: アイテム優先AI)") do |ai|
+    options[:player2] = ai
+  end
+
+  opts.on("-v", "--verbose", "Enable verbose output") do
+    options[:verbose] = true
+  end
+
+  opts.on("-l", "--list", "List available maps and AIs") do
+    GameLogicDebugger.list_available_resources
+    exit
+  end
+
+  opts.on("-h", "--help", "Show this help message") do
+    puts opts
+    puts "\nExamples:"
+    puts "  #{$0}                              # Use default settings"
+    puts "  #{$0} -m 1 -1 'ゴール優先AI' -2 2   # Use map ID 1, AI name, AI ID 2"
+    puts "  #{$0} --list                       # Show available resources"
+    puts "  #{$0} -v                           # Enable verbose output"
+    puts
+    puts "Available GameMaps and PlayerAIs can be listed with --list option."
+    exit
+  end
+end.parse!
 
 # Run the debugger
 if __FILE__ == $0
-  debugger = GameLogicDebugger.new
+  debugger = GameLogicDebugger.new(options)
   debugger.run
 end
