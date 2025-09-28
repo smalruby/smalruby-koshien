@@ -7,8 +7,9 @@ require "timeout"
 # AI Process Execution Wrapper
 # Manages Ruby AI process execution with JSON communication over stdin/stdout
 class AiProcessManager
-  TIMEOUT_SECONDS = 5
-  MAX_TURNS = 50
+  include GameConstants
+
+  TIMEOUT_SECONDS = TURN_DURATION  # Use game constants timeout
 
   attr_reader :process_pid, :stdin, :stdout, :stderr, :thread, :player_name,
     :game_id, :round_number, :player_index, :player_ai_id
@@ -279,21 +280,28 @@ class AiProcessManager
   def wait_for_message
     return nil unless alive?
 
+    # Debug: log the timeout value being used
+    Rails.logger.debug "AI Process wait_for_message: using timeout=#{TIMEOUT_SECONDS} seconds, current time=#{Time.current}"
+
     begin
+      timeout_start = Time.current
       Timeout.timeout(TIMEOUT_SECONDS) do
         line = @stdout.readline
+        timeout_elapsed = Time.current - timeout_start
         @last_output_time = Time.now
 
         message = JSON.parse(line.chomp)
-        Rails.logger.debug "Received from AI: #{line.chomp}"
+        Rails.logger.debug "Received from AI (after #{timeout_elapsed.round(3)}s): #{line.chomp}"
         message
       end
     rescue Timeout::Error
-      Rails.logger.warn "AI Process timeout: no output for #{TIMEOUT_SECONDS} seconds"
+      timeout_elapsed = Time.current - timeout_start
+      Rails.logger.warn "AI Process timeout: no output for #{TIMEOUT_SECONDS} seconds (actual elapsed: #{timeout_elapsed.round(3)}s)"
       @status = :timeout
       nil
     rescue EOFError
-      Rails.logger.info "AI Process ended (EOF)"
+      timeout_elapsed = Time.current - timeout_start
+      Rails.logger.info "AI Process ended (EOF) after #{timeout_elapsed.round(3)}s"
       @status = :ended
       nil
     rescue JSON::ParserError => e

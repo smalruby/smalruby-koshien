@@ -19,4 +19,6 @@ Sprite.new(
 
   # 何もしない（ターンを終了しない）
   # タイムアウトまで待機
+  loop do
+  end
 end
