@@ -161,12 +161,12 @@ class AiProcessManager
       data: {
         turn_number: @turn_count,
         actions_processed: actions_processed,
-        next_turn_will_start: @turn_count < MAX_TURNS
+        next_turn_will_start: @turn_count < MAX_TURN
       }
     }
 
     send_message(confirm_message)
-    @status = (@turn_count >= MAX_TURNS) ? :game_completed : :ready
+    @status = (@turn_count >= MAX_TURN) ? :game_completed : :ready
     true
   end
 
