@@ -464,12 +464,16 @@ class AiEngine
     class MockKoshien
       def initialize(context)
         @context = context
+        @player_name = nil
       end
 
       def connect_game(name:)
-        # Stub implementation
+        @player_name = name
+        @context.log("Connected to game as: #{name}")
         nil
       end
+
+      attr_reader :player_name
 
       def get_map_area(position)
         # Implementation for map area exploration

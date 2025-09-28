@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "time"
 
 module Smalruby3
   # JSON Protocol Adapter for Koshien AI execution
@@ -19,7 +20,10 @@ module Smalruby3
     def setup_json_communication
       @initialized = true
 
-      # Send ready message
+      # Debug output
+      warn "DEBUG setup_json_communication: instance=#{object_id}, @player_name=#{@player_name.inspect}"
+
+      # Send ready message - use stored player name from connect_game if available
       player_name = extract_player_name_from_script
       send_ready_message(player_name)
 
@@ -93,21 +97,29 @@ module Smalruby3
     private
 
     def extract_player_name_from_script
-      # Try to extract player name from the script filename or content
-      if $0 && File.basename($0).match?(/stage_\d+_(.+)\.rb/)
-        File.basename($0, ".rb").gsub(/^stage_\d+_/, "")
-      else
-        "json_ai_player"
-      end
+      # Use stored player name if available, otherwise extract from script filename
+      @player_name || (
+        if $0 && File.basename($0).match?(/stage_\d+_(.+)\.rb/)
+          File.basename($0, ".rb").gsub(/^stage_\d+_/, "")
+        else
+          "json_ai_player"
+        end
+      )
     end
 
     def send_ready_message(player_name)
-      @player_name = player_name
+      # Use the stored player name from connect_game if available
+      final_player_name = @player_name || player_name
+      @player_name = final_player_name
+
+      # Debug output
+      warn "DEBUG: @player_name=#{@player_name.inspect}, player_name=#{player_name.inspect}, final=#{final_player_name.inspect}"
+
       send_message({
         type: "ready",
         timestamp: Time.now.utc.iso8601,
         data: {
-          player_name: player_name,
+          player_name: final_player_name,
           ai_version: "1.0.0",
           status: "initialized"
         }
@@ -193,7 +205,10 @@ module Smalruby3
     private
 
     def json_adapter
-      @json_adapter ||= KoshienJsonAdapter.instance
+      # Always use the singleton instance, don't cache per Koshien instance
+      adapter = KoshienJsonAdapter.instance
+      warn "DEBUG json_adapter: #{adapter.object_id}, @player_name=#{adapter.instance_variable_get(:@player_name).inspect}"
+      adapter
     end
 
     def in_json_mode?
@@ -206,8 +221,19 @@ module Smalruby3
     # Override methods to work with JSON communication
     def connect_game(name:)
       if in_json_mode?
-        # In JSON mode, connection is handled by the adapter
+        # Store player name for JSON communication in both Koshien and KoshienJsonAdapter instances
+        @player_name = name
+
+        # Also store in KoshienJsonAdapter singleton to ensure it's preserved
+        json_adapter.instance_variable_set(:@player_name, name)
+
         log("Connected to game as: #{name}")
+
+        # Debug output
+        warn "DEBUG connect_game: instance=#{object_id}, set @player_name=#{@player_name.inspect}"
+        warn "DEBUG connect_game: adapter instance=#{json_adapter.object_id}, set adapter @player_name=#{json_adapter.instance_variable_get(:@player_name).inspect}"
+
+        # Player name will be sent in ready message during setup_json_communication
       else
         # Original stub behavior
         log(%(プレイヤー名を設定します: name="#{name}"))

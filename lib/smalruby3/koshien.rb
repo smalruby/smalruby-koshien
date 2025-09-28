@@ -35,6 +35,7 @@ module Smalruby3
     # - 1ゲームにつき1回しか実行できません。
     # - 2回目以降は無視されます。
     def connect_game(name:)
+      warn "DEBUG original connect_game called with: #{name.inspect}"
       log(%(プレイヤー名を設定します: name="#{name}"))
     end
 
