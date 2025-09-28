@@ -56,32 +56,17 @@ RSpec.describe BattleJob, type: :job do
 
   describe "#perform" do
     context "正常なバトル実行の場合" do
-      it "ゲームを正常に完了させる" do
+      it "ゲームを正常に完了させ、必要なレコードを作成する" do
         expect {
           described_class.perform_now(game.id)
         }.to change { game.reload.status }.from("in_progress").to("completed")
+          .and change(GameRound, :count).by(GameConstants::N_ROUNDS)
+          .and change(GameTurn, :count).by_at_least(GameConstants::N_ROUNDS)
+          .and change(Player, :count).by(GameConstants::N_ROUNDS * GameConstants::N_PLAYERS)
+          .and change(GameEvent, :count).by_at_least(1)
 
         expect(game.completed_at).to be_present
         expect(game.winner).to be_in(["first", "second"])
-      end
-
-      it "ゲームラウンドとターンが作成される" do
-        expect {
-          described_class.perform_now(game.id)
-        }.to change(GameRound, :count).by(GameConstants::N_ROUNDS)
-          .and change(GameTurn, :count).by_at_least(GameConstants::N_ROUNDS)
-      end
-
-      it "プレイヤーが作成される" do
-        expect {
-          described_class.perform_now(game.id)
-        }.to change(Player, :count).by(GameConstants::N_ROUNDS * GameConstants::N_PLAYERS)
-      end
-
-      it "ゲームイベントが作成される" do
-        expect {
-          described_class.perform_now(game.id)
-        }.to change(GameEvent, :count).by_at_least(1)
       end
     end
 
