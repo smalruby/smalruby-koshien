@@ -35,7 +35,6 @@ module Smalruby3
       @last_map_area_info = {}
       @actions = []
       @initialized = false
-      @initialization_received = false
       @current_turn_data = nil
       @current_turn = 0
     end
@@ -44,33 +43,9 @@ module Smalruby3
     def setup_json_communication
       @initialized = true
       @actions = []
-      @initialization_received = false
 
-      # Wait for initialization message from AiProcessManager first
-      message = receive_json_message
-
-      if message && message["type"] == "initialize"
-        @game_state = message["data"] || {}
-        @rand_seed = @game_state["rand_seed"]
-        srand(@rand_seed) if @rand_seed
-
-        # Initialize position from initial_position if available
-        if @game_state["initial_position"]
-          @player_position = [
-            @game_state["initial_position"]["x"] || 0,
-            @game_state["initial_position"]["y"] || 0
-          ]
-          @current_position = {
-            x: @game_state["initial_position"]["x"] || 0,
-            y: @game_state["initial_position"]["y"] || 0
-          }
-        end
-
-        @initialization_received = true
-        true
-      else
-        false
-      end
+      # Setup completed
+      true
     end
 
     # Main game loop - wait for turns and execute
@@ -134,49 +109,6 @@ module Smalruby3
       @goal_position = position
     end
 
-    # Update position when movements are planned (fallback position tracking)
-    def track_movement_action(target_x, target_y)
-      # Update the fallback position to track intended movements
-      # This helps when turn data doesn't arrive properly
-      @current_position = {x: target_x, y: target_y}
-    end
-
-    # Request map area data from game engine (synchronous call)
-    def request_map_area(x, y)
-      # Send map area request message
-      request_message = {
-        type: "map_area_request",
-        timestamp: Time.now.utc.iso8601,
-        data: {
-          x: x,
-          y: y,
-          area_size: 5
-        }
-      }
-      send_json_message(request_message)
-
-      # Wait for response
-      response = receive_json_message
-
-      if response && response["type"] == "map_area_response"
-        response["data"]
-      end
-    end
-
-    # Action collection methods
-    def add_action(action)
-      @actions ||= []
-      @actions << action
-    end
-
-    def clear_actions
-      @actions = []
-    end
-
-    def get_actions
-      (@actions || []).dup
-    end
-
     # Handle turn start from AI process manager
     def handle_turn_start(turn_data)
       @turn_number = turn_data["turn"] || @turn_number
@@ -197,43 +129,6 @@ module Smalruby3
         player_position: @player_position,
         goal_position: @goal_position
       })
-    end
-
-    # Send turn over signal to AI process
-    def send_turn_over
-      actions = get_actions
-      send_json_message({
-        type: "turn_over",
-        timestamp: Time.now.utc.iso8601,
-        data: {
-          actions: actions
-        }
-      })
-      clear_actions
-    end
-
-    # Wait for turn processing to complete
-    def wait_for_turn_completion
-      loop do
-        message = receive_json_message
-        return false unless message
-
-        case message["type"]
-        when "turn_end_confirm"
-          handle_turn_end_confirm(message["data"])
-          return true # Turn completed, continue to next turn
-        when "game_end"
-          handle_game_end(message["data"])
-          exit(0) # Game finished, exit script
-        when "turn_start"
-          # New turn started, update state and return
-          handle_turn_start_message(message["data"])
-          return true
-        else
-          send_error_message("Unexpected message type during turn completion: #{message["type"]}")
-          return false
-        end
-      end
     end
 
     # Turn start message handler (different from handle_turn_start)
@@ -303,21 +198,6 @@ module Smalruby3
       )
     end
 
-    def send_ready_message(player_name)
-      # Use the stored player name from connect_game if available
-      final_player_name = @player_name || player_name
-      @player_name = final_player_name
-
-      send_json_message({
-        type: "ready",
-        timestamp: Time.now.utc.iso8601,
-        data: {
-          player_name: final_player_name,
-          ai_version: "1.0.0",
-          status: "initialized"
-        }
-      })
-    end
 
     def send_json_message(message)
       json_str = JSON.generate(message)
@@ -394,16 +274,10 @@ module Smalruby3
     # - 1ゲームにつき1回しか実行できません。
     # - 2回目以降は無視されます。
     def connect_game(name:)
-      # Store the player name for later use in ready response
+      # Store the player name
       @player_name = name
 
-      # Send ready message now that we have the player name
-      if @initialization_received
-        send_ready_message(@player_name)
-        return true
-      end
-
-      # For regular JSON mode (not AiProcessManager), send connect_game message
+      # Send connect_game message
       send_json_message({
         type: "connect_game",
         player_name: name
@@ -453,28 +327,19 @@ module Smalruby3
       if position.is_a?(String) && position.include?(":")
         x, y = position.split(":").map(&:to_i)
 
-        if @initialization_received
-          # AI ProcessManager mode - use async communication
-          map_area_data = request_map_area(x, y)
-          add_action({action_type: "explore", target_position: {x: x, y: y}, area_size: 5})
-          @action_count += 1
-          map_area_data
-        else
-          # Traditional JSON mode - send get_map_area message and wait for response
-          send_json_message({
-            type: "get_map_area",
-            position: position,
-            x: x,
-            y: y
-          })
+        send_json_message({
+          type: "get_map_area",
+          position: position,
+          x: x,
+          y: y
+        })
 
-          response = receive_json_message
-          if response && response["type"] == "map_area_data"
-            @action_count += 1
-            response["data"]
-          else
-            nil
-          end
+        response = receive_json_message
+        if response && response["type"] == "map_area_data"
+          @action_count += 1
+          response["data"]
+        else
+          nil
         end
       end
     end
@@ -509,15 +374,6 @@ module Smalruby3
       if position.is_a?(String) && position.include?(":")
         x, y = position.split(":").map(&:to_i)
 
-        # For AI ProcessManager mode, use action-based approach
-        if @initialization_received
-          add_action({action_type: "move", target_x: x, target_y: y})
-          # Track the intended movement for fallback position tracking
-          track_movement_action(x, y)
-          return
-        end
-
-        # For traditional JSON mode, use synchronous approach
         return nil if @action_count >= 2
 
         send_json_message({
@@ -670,9 +526,9 @@ module Smalruby3
     #
     # - (実行するとターンが終了するので) 1ターンに1回のみ
     def turn_over
-      send_turn_over
-      # Wait for turn processing to complete before returning control to script
-      wait_for_turn_completion
+      send_json_message({
+        type: "turn_over"
+      })
     end
 
     # --------------------------------------------------------------------------------
