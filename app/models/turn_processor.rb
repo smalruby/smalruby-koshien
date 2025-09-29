@@ -371,7 +371,7 @@ class TurnProcessor
 
     # Enemy attacks player
     if enemy.can_attack?(player_index)
-      player.score = [player.score + ENEMY_DISCOUNT, 0].max
+      player.score += ENEMY_DISCOUNT
       player.status = :completed
       player.save!
 
