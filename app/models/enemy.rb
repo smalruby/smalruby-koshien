@@ -75,7 +75,7 @@ class Enemy < ApplicationRecord
   end
 
   # 敵の移動ロジック（全段階実装）
-  def move(game_map_data, players)
+  def move(game_map_data, players, current_round = nil)
     return unless position_x && position_y
 
     # 前の位置を記録
@@ -83,7 +83,7 @@ class Enemy < ApplicationRecord
     self.previous_position_y = position_y
 
     # プレイヤーが射程内にいるかチェック
-    target_player = find_player_in_range(players)
+    target_player = find_player_in_range(players, current_round)
     if target_player.nil?
       # 第1段階：射程外の場合はランダム移動
       move_randomly(game_map_data)
@@ -99,7 +99,7 @@ class Enemy < ApplicationRecord
   private
 
   # 射程内のプレイヤーを探す（参考実装に基づく完全版）
-  def find_player_in_range(players)
+  def find_player_in_range(players, current_round = nil)
     candidates = []
 
     players.each do |player|
@@ -125,8 +125,17 @@ class Enemy < ApplicationRecord
       # 複数のプレイヤーが射程内にいる場合
       if candidates.all? { |_, d| d == candidates.first[1] }
         # 距離が同じ場合はラウンドによって対象を変える（公平性のため）
-        # TODO: 現在のラウンドを取得する仕組みが必要
-        candidates[0][0]  # 暫定的に最初のプレイヤーを選択
+        # 参考実装: Game.instance.round-1 による選択
+        if current_round&.respond_to?(:round_number)
+          round_index = current_round.round_number - 1
+          if round_index >= 0 && round_index < candidates.length
+            candidates[round_index][0]
+          else
+            candidates[0][0]  # フォールバック
+          end
+        else
+          candidates[0][0]  # ラウンド情報がない場合のフォールバック
+        end
       else
         # 最も近いプレイヤーを選択
         candidates.min_by { |_, distance| distance }[0]

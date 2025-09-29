@@ -287,8 +287,8 @@ class GameEngine
       # Get current round players for enemy movement logic
       players = @current_round.players.reload
 
-      # Execute enemy movement
-      enemy.move(game.game_map.map_data, players)
+      # Execute enemy movement with current round information
+      enemy.move(game.game_map.map_data, players, @current_round)
       enemy.save!
 
       Rails.logger.debug "Enemy moved to (#{enemy.position_x}, #{enemy.position_y})"
