@@ -42,9 +42,8 @@ class AiProcessManager
       "ruby #{@ai_script_path}"
     end
 
-    # Set environment variables for JSON communication
+    # Set environment variables for AI process
     env = {
-      "KOSHIEN_JSON_MODE" => "true",
       "RAILS_ENV" => Rails.env
     }
 
