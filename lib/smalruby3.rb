@@ -10,7 +10,10 @@ include Smalruby3 # standard:disable Style/MixinUsage
 
 # Initialize JSON communication
 # Skip initialization during tests to avoid circular dependencies
-unless ENV["RAILS_ENV"] == "test" || ENV["RSPEC_CORE_RUNNER"] == "1"
+# Unless explicitly forced by KOSHIEN_FORCE_JSON_COMMUNICATION (for AI processes)
+test_env = ENV["RAILS_ENV"] == "test" || ENV["RSPEC_CORE_RUNNER"] == "1"
+force_json = ENV["KOSHIEN_FORCE_JSON_COMMUNICATION"] == "1"
+if !test_env || force_json
   # Setup JSON communication using main Koshien class
   # This ensures JSON communication is set up before any script execution
   koshien_instance = Smalruby3::Koshien.instance

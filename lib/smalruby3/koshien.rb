@@ -10,7 +10,7 @@ module Smalruby3
 
     # JSON communication attributes
     attr_accessor :io_input, :io_output, :game_state, :turn_number, :round_number
-    attr_accessor :player_position, :goal_position, :other_player_position, :enemy_position
+    attr_accessor :player_position, :other_player_position, :enemy_position
     attr_accessor :my_map, :item_locations, :dynamite_count, :bomb_count
     attr_accessor :current_message, :action_count, :last_map_area_info
     attr_accessor :actions, :initialized, :initialization_received, :current_turn_data, :current_turn
@@ -22,6 +22,7 @@ module Smalruby3
       @turn_number = 0
       @round_number = 0
       @player_position = [0, 0]
+      @current_position = {x: 0, y: 0}  # Track position locally as fallback
       @goal_position = [0, 0]
       @other_player_position = nil
       @enemy_position = nil
@@ -59,6 +60,10 @@ module Smalruby3
             @game_state["initial_position"]["x"] || 0,
             @game_state["initial_position"]["y"] || 0
           ]
+          @current_position = {
+            x: @game_state["initial_position"]["x"] || 0,
+            y: @game_state["initial_position"]["y"] || 0
+          }
         end
 
         @initialization_received = true
@@ -85,6 +90,71 @@ module Smalruby3
         else
           send_error_message("Unknown message type: #{message["type"]}")
         end
+      end
+    end
+
+    # Game state accessors
+    def current_player_position
+      # First try to get position from current turn data
+      if @current_turn_data && @current_turn_data["current_player"]
+        current_player = @current_turn_data["current_player"]
+
+        # Handle both possible data structures
+        if current_player["position"]
+          result = current_player["position"]
+          return result
+        elsif current_player["x"] && current_player["y"]
+          result = {x: current_player["x"], y: current_player["y"]}
+          return result
+        end
+      end
+
+      # Fallback to locally tracked position
+      @current_position
+    end
+
+    def other_players
+      @current_turn_data&.dig("other_players") || []
+    end
+
+    def enemies
+      @current_turn_data&.dig("enemies") || []
+    end
+
+    def visible_map
+      @current_turn_data&.dig("visible_map") || {}
+    end
+
+    def goal_position
+      @game_state&.dig("game_map", "goal_position") || {x: 14, y: 14}
+    end
+
+    # Update position when movements are planned (fallback position tracking)
+    def track_movement_action(target_x, target_y)
+      # Update the fallback position to track intended movements
+      # This helps when turn data doesn't arrive properly
+      @current_position = {x: target_x, y: target_y}
+    end
+
+    # Request map area data from game engine (synchronous call)
+    def request_map_area(x, y)
+      # Send map area request message
+      request_message = {
+        type: "map_area_request",
+        timestamp: Time.now.utc.iso8601,
+        data: {
+          x: x,
+          y: y,
+          area_size: 5
+        }
+      }
+      send_json_message(request_message)
+
+      # Wait for response
+      response = receive_json_message
+
+      if response && response["type"] == "map_area_response"
+        response["data"]
       end
     end
 
@@ -135,10 +205,30 @@ module Smalruby3
         }
       })
       clear_actions
+    end
 
-      # Wait for acknowledgment
-      response = receive_json_message
-      response && response["type"] == "turn_acknowledged"
+    # Wait for turn processing to complete
+    def wait_for_turn_completion
+      loop do
+        message = receive_json_message
+        return false unless message
+
+        case message["type"]
+        when "turn_end_confirm"
+          handle_turn_end_confirm(message["data"])
+          return true # Turn completed, continue to next turn
+        when "game_end"
+          handle_game_end(message["data"])
+          exit(0) # Game finished, exit script
+        when "turn_start"
+          # New turn started, update state and return
+          handle_turn_start_message(message["data"])
+          return true
+        else
+          send_error_message("Unexpected message type during turn completion: #{message["type"]}")
+          return false
+        end
+      end
     end
 
     # Turn start message handler (different from handle_turn_start)
@@ -151,6 +241,8 @@ module Smalruby3
         current_player = data["current_player"]
         if current_player["x"] && current_player["y"]
           @player_position = [current_player["x"], current_player["y"]]
+          # Also update current_position for compatibility
+          @current_position = {x: current_player["x"], y: current_player["y"]}
         end
       end
 
@@ -159,11 +251,26 @@ module Smalruby3
     end
 
     def handle_turn_end_confirm(data)
-      # Turn processing completed
+      send_debug_message("Turn #{data["turn_number"]} confirmed, #{data["actions_processed"]} actions processed")
     end
 
     def handle_game_end(data)
-      # Game finished
+      send_debug_message("Game ended: #{data["reason"]}, final score: #{data.fetch("final_score", 0)}")
+    end
+
+    def send_debug_message(message)
+      send_json_message({
+        type: "debug",
+        timestamp: Time.now.utc.iso8601,
+        data: {
+          level: "info",
+          message: message,
+          context: {
+            current_action: "debug",
+            turn_number: @current_turn
+          }
+        }
+      })
     end
 
     def send_error_message(error_message)
@@ -179,6 +286,33 @@ module Smalruby3
     end
 
     private
+
+    def extract_player_name_from_script
+      # Use stored player name if available, otherwise extract from script filename
+      @player_name || (
+        if $0 && File.basename($0).match?(/stage_\d+_(.+)\.rb/)
+          File.basename($0, ".rb").gsub(/^stage_\d+_/, "")
+        else
+          "json_ai_player"
+        end
+      )
+    end
+
+    def send_ready_message(player_name)
+      # Use the stored player name from connect_game if available
+      final_player_name = @player_name || player_name
+      @player_name = final_player_name
+
+      send_json_message({
+        type: "ready",
+        timestamp: Time.now.utc.iso8601,
+        data: {
+          player_name: final_player_name,
+          ai_version: "1.0.0",
+          status: "initialized"
+        }
+      })
+    end
 
     def send_json_message(message)
       json_str = JSON.generate(message)
@@ -255,19 +389,16 @@ module Smalruby3
     # - 1ゲームにつき1回しか実行できません。
     # - 2回目以降は無視されます。
     def connect_game(name:)
-      send_json_message({
-        type: "connect_game",
-        player_name: name
-      })
+      # Store the player name for later use in ready response
+      @player_name = name
 
-      response = receive_json_message
-      if response && response["type"] == "connection_established"
-        log(%(プレイヤー名を設定します: name="#{name}"))
-        true
-      else
-        log("Failed to connect to game")
-        false
+      # Send ready message now that we have the player name
+      if @initialization_received
+        send_ready_message(@player_name)
       end
+
+      log(%(プレイヤー名を設定します: name="#{name}"))
+      true
     end
 
     # :call-seq:
@@ -299,25 +430,18 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def get_map_area(position)
-      return nil if @action_count >= 2
+      if position.is_a?(String) && position.include?(":")
+        x, y = position.split(":").map(&:to_i)
 
-      pos = Position.new(position)
+        # Request map area data from game engine
+        map_area_data = request_map_area(x, y)
 
-      send_json_message({
-        type: "get_map_area",
-        position: {x: pos.x, y: pos.y},
-        turn: @turn_number
-      })
+        # Add exploration action for event logging
+        add_action({action_type: "explore", target_position: {x: x, y: y}, area_size: 5})
 
-      response = receive_json_message
-      if response && response["type"] == "map_area_data"
-        @last_map_area_info = response["data"] || {}
-        update_map_from_area_data(@last_map_area_info, pos.x, pos.y)
-        @action_count += 1
-        return @last_map_area_info
+        # Return the map area data to the AI script
+        map_area_data
       end
-
-      nil
     end
 
     # :call-seq:
@@ -347,26 +471,12 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def move_to(position)
-      return nil if @action_count >= 2
-
-      pos = Position.new(position)
-
-      send_json_message({
-        type: "move_to",
-        position: {x: pos.x, y: pos.y},
-        turn: @turn_number
-      })
-
-      response = receive_json_message
-      if response && response["type"] == "move_result"
-        if response["success"]
-          @player_position = [pos.x, pos.y]
-        end
-        @action_count += 1
-        return response["success"]
+      if position.is_a?(String) && position.include?(":")
+        x, y = position.split(":").map(&:to_i)
+        add_action({action_type: "move", target_x: x, target_y: y})
+        # Track the intended movement for fallback position tracking
+        track_movement_action(x, y)
       end
-
-      false
     end
 
     # :call-seq:
@@ -501,6 +611,8 @@ module Smalruby3
     # - (実行するとターンが終了するので) 1ターンに1回のみ
     def turn_over
       send_turn_over
+      # Wait for turn processing to complete before returning control to script
+      wait_for_turn_completion
     end
 
     # --------------------------------------------------------------------------------
@@ -1119,14 +1231,7 @@ module Smalruby3
     #
     # - AI開発時の動作確認に使うことを想定しています。
     def set_message(message)
-      @current_message = message.to_s[0, 100] # Limit to 100 characters
-      log("Message: #{@current_message}")
-
-      send_json_message({
-        type: "set_message",
-        message: @current_message,
-        turn: @turn_number
-      })
+      send_debug_message(message.to_s)
     end
 
     private

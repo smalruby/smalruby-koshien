@@ -44,7 +44,8 @@ class AiProcessManager
 
     # Set environment variables for AI process
     env = {
-      "RAILS_ENV" => Rails.env
+      "RAILS_ENV" => Rails.env,
+      "KOSHIEN_FORCE_JSON_COMMUNICATION" => "1"
     }
 
     @stdin, @stdout, @stderr, @thread = Open3.popen3(env, cmd)
