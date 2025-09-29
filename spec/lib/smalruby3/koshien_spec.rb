@@ -329,7 +329,7 @@ RSpec.describe Smalruby3::Koshien do
       # Block all paths with walls
       (0..14).each do |x|
         (0..14).each do |y|
-          koshien.my_map[y][x] = 1 unless (x == 5 && y == 5) # Keep start position clear
+          koshien.my_map[y][x] = 1 unless x == 5 && y == 5 # Keep start position clear
         end
       end
 
