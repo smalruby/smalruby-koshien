@@ -1,12 +1,135 @@
 require "singleton"
+require "json"
+require "timeout"
 
 module Smalruby3
   # スモウルビー甲子園のAIを作るためのクラス
   class Koshien
     include Singleton
 
+    # JSON communication attributes
+    attr_accessor :io_input, :io_output, :game_state, :turn_number, :round_number
+    attr_accessor :player_position, :goal_position, :other_player_position, :enemy_position
+    attr_accessor :my_map, :item_locations, :dynamite_count, :bomb_count
+    attr_accessor :current_message, :action_count, :last_map_area_info
+
     def initialize
+      @io_input = $stdin
+      @io_output = $stdout
+      @game_state = {}
+      @turn_number = 0
+      @round_number = 0
+      @player_position = [0, 0]
+      @goal_position = [0, 0]
+      @other_player_position = nil
+      @enemy_position = nil
+      @my_map = Array.new(15) { Array.new(15, -1) }
+      @item_locations = {}
+      @dynamite_count = 2
+      @bomb_count = 2
+      @current_message = ""
+      @action_count = 0
+      @last_map_area_info = {}
     end
+
+    # Setup JSON communication with AI process
+    def setup_json_communication
+      # Send initial ready signal
+      send_json_message({type: "ready"})
+
+      # Wait for game start signal
+      message = receive_json_message
+      if message && message["type"] == "game_start"
+        @game_state = message["game_state"] || {}
+        update_game_state_from_json(@game_state)
+      end
+    end
+
+    # Handle turn start from AI process manager
+    def handle_turn_start(turn_data)
+      @turn_number = turn_data["turn"] || @turn_number
+      @round_number = turn_data["round"] || @round_number
+
+      if turn_data["game_state"]
+        @game_state = turn_data["game_state"]
+        update_game_state_from_json(@game_state)
+      end
+
+      @action_count = 0
+
+      # Notify AI that turn is ready
+      send_json_message({
+        type: "turn_ready",
+        turn: @turn_number,
+        round: @round_number,
+        player_position: @player_position,
+        goal_position: @goal_position
+      })
+    end
+
+    # Send turn over signal to AI process
+    def send_turn_over
+      send_json_message({
+        type: "turn_over",
+        turn: @turn_number,
+        message: @current_message,
+        actions_taken: @action_count
+      })
+
+      # Wait for acknowledgment
+      response = receive_json_message
+      response && response["type"] == "turn_acknowledged"
+    end
+
+    private
+
+    def send_json_message(message)
+      json_str = JSON.generate(message)
+      @io_output.puts(json_str)
+      @io_output.flush
+    end
+
+    def receive_json_message(timeout_seconds = 30)
+      Timeout.timeout(timeout_seconds) do
+        line = @io_input.gets
+        return nil unless line
+        JSON.parse(line.strip)
+      end
+    rescue Timeout::Error, JSON::ParserError => e
+      log("JSON communication error: #{e.message}")
+      nil
+    end
+
+    def update_game_state_from_json(state)
+      if state["player"]
+        @player_position = [state["player"]["x"] || 0, state["player"]["y"] || 0]
+        @dynamite_count = state["player"]["dynamite_left"] || 2
+        @bomb_count = state["player"]["bomb_left"] || 2
+      end
+
+      if state["goal"]
+        @goal_position = [state["goal"]["x"] || 0, state["goal"]["y"] || 0]
+      end
+
+      @other_player_position = if state["other_player"]
+        [state["other_player"]["x"], state["other_player"]["y"]]
+      end
+
+      @enemy_position = if state["enemies"]&.any?
+        enemy = state["enemies"].first
+        [enemy["x"], enemy["y"]]
+      end
+
+      if state["map"]
+        @my_map = state["map"]
+      end
+
+      if state["items"]
+        @item_locations = state["items"]
+      end
+    end
+
+    public
 
     # --------------------------------------------------------------------------------
     # :section: 使用回数に制限がある命令
@@ -35,8 +158,19 @@ module Smalruby3
     # - 1ゲームにつき1回しか実行できません。
     # - 2回目以降は無視されます。
     def connect_game(name:)
-      warn "DEBUG original connect_game called with: #{name.inspect}"
-      log(%(プレイヤー名を設定します: name="#{name}"))
+      send_json_message({
+        type: "connect_game",
+        player_name: name
+      })
+
+      response = receive_json_message
+      if response && response["type"] == "connection_established"
+        log(%(プレイヤー名を設定します: name="#{name}"))
+        true
+      else
+        log("Failed to connect to game")
+        false
+      end
     end
 
     # :call-seq:
@@ -68,7 +202,24 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def get_map_area(position)
-      # Stub implementation - returns nil
+      return nil if @action_count >= 2
+
+      pos = Position.new(position)
+
+      send_json_message({
+        type: "get_map_area",
+        position: {x: pos.x, y: pos.y},
+        turn: @turn_number
+      })
+
+      response = receive_json_message
+      if response && response["type"] == "map_area_data"
+        @last_map_area_info = response["data"] || {}
+        update_map_from_area_data(@last_map_area_info, pos.x, pos.y)
+        @action_count += 1
+        return @last_map_area_info
+      end
+
       nil
     end
 
@@ -99,8 +250,26 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def move_to(position)
-      # Stub implementation - returns nil
-      nil
+      return nil if @action_count >= 2
+
+      pos = Position.new(position)
+
+      send_json_message({
+        type: "move_to",
+        position: {x: pos.x, y: pos.y},
+        turn: @turn_number
+      })
+
+      response = receive_json_message
+      if response && response["type"] == "move_result"
+        if response["success"]
+          @player_position = [pos.x, pos.y]
+        end
+        @action_count += 1
+        return response["success"]
+      end
+
+      false
     end
 
     # :call-seq:
@@ -132,9 +301,33 @@ module Smalruby3
     # - move_to, get_map_area, set_dynamite, set_bomb の使用回数は1ターンにいずれか2回
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
-    def set_dynamite(position)
-      # Stub implementation - returns nil
-      nil
+    def set_dynamite(position = nil)
+      return nil if @action_count >= 2
+      return nil if @dynamite_count <= 0
+
+      if position.nil?
+        target_x, target_y = @player_position
+      else
+        pos = Position.new(position)
+        target_x, target_y = pos.x, pos.y
+      end
+
+      send_json_message({
+        type: "set_dynamite",
+        position: {x: target_x, y: target_y},
+        turn: @turn_number
+      })
+
+      response = receive_json_message
+      if response && response["type"] == "dynamite_result"
+        if response["success"]
+          @dynamite_count -= 1
+        end
+        @action_count += 1
+        return response["success"]
+      end
+
+      false
     end
 
     # :call-seq:
@@ -163,9 +356,33 @@ module Smalruby3
     # - move_to, get_map_area, set_dynamite, set_bomb の使用回数は1ターンにいずれか2回
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
-    def set_bomb(position)
-      # Stub implementation - returns nil
-      nil
+    def set_bomb(position = nil)
+      return nil if @action_count >= 2
+      return nil if @bomb_count <= 0
+
+      if position.nil?
+        target_x, target_y = @player_position
+      else
+        pos = Position.new(position)
+        target_x, target_y = pos.x, pos.y
+      end
+
+      send_json_message({
+        type: "set_bomb",
+        position: {x: target_x, y: target_y},
+        turn: @turn_number
+      })
+
+      response = receive_json_message
+      if response && response["type"] == "bomb_result"
+        if response["success"]
+          @bomb_count -= 1
+        end
+        @action_count += 1
+        return response["success"]
+      end
+
+      false
     end
 
     # :call-seq:
@@ -186,8 +403,7 @@ module Smalruby3
     #
     # - (実行するとターンが終了するので) 1ターンに1回のみ
     def turn_over
-      # Stub implementation - returns nil
-      nil
+      send_turn_over
     end
 
     # --------------------------------------------------------------------------------
@@ -269,11 +485,36 @@ module Smalruby3
     #     koshien.calc_route(result: list("$最短経路"))
     #     koshien.move_to(list("$最短経路")[1])
     #     ```
-    def calc_route(result:, src: player, dst: goal, except_cells: nil)
+    def calc_route(result:, src: nil, dst: nil, except_cells: nil)
       result ||= List.new
 
-      route = []
-      result.replace(route.map { |x| Position.new(x).to_s })
+      # Parse source and destination positions
+      src_pos = src ? Position.new(src) : Position.new(@player_position[0], @player_position[1])
+      dst_pos = dst ? Position.new(dst) : Position.new(@goal_position[0], @goal_position[1])
+
+      # Parse except_cells if provided
+      except_positions = []
+      if except_cells&.respond_to?(:length)
+        # Handle Smalruby3::List (1-based indexing)
+        (1..except_cells.length).each do |i|
+          cell = except_cells[i]
+          pos = Position.new(cell)
+          except_positions << [pos.x, pos.y]
+        end
+      elsif except_cells.respond_to?(:each)
+        # Handle regular Array
+        except_cells.each do |cell|
+          pos = Position.new(cell)
+          except_positions << [pos.x, pos.y]
+        end
+      end
+
+      # Use Dijkstra's algorithm to find shortest path
+      route = dijkstra_pathfind(src_pos.x, src_pos.y, dst_pos.x, dst_pos.y, except_positions)
+
+      # Convert route to position strings
+      route_strings = route.map { |coords| Position.new(coords[0], coords[1]).to_s }
+      result.replace(route_strings)
       result
     end
 
@@ -296,8 +537,14 @@ module Smalruby3
     # - マップ情報を取得していない座標を指定した場合は、 `-1` が返されます。
     # - マップエリア外を指定した場合は、 `nil` が返されます。
     def map(position)
-      # Stub implementation - returns -1 for unknown
-      -1
+      pos = Position.new(position)
+      x, y = pos.x, pos.y
+
+      # Check bounds
+      return nil if x < 0 || x >= 15 || y < 0 || y >= 15
+
+      # Return map data or -1 for unknown
+      @my_map[y][x] || -1
     end
 
     # :call-seq:
@@ -343,7 +590,11 @@ module Smalruby3
     #     ```
     # - さらに、そこからある座標のマップ情報を参照するには map_from メソッドを使います。
     def map_all
-      Map.new("").to_s
+      # Convert 2D array to comma-separated string format
+      rows = @my_map.map do |row|
+        row.map { |cell| (cell == -1) ? "-" : cell.to_s }.join
+      end
+      rows.join(",")
     end
 
     # :call-seq:
@@ -401,11 +652,47 @@ module Smalruby3
     # - => 水たまり
     #     - 範囲内の地形・アイテム (中心 座標 (7:7) 、範囲 (15) 、地形・アイテム (4))をリスト [水たまり] に保存する
     #     - `koshien.locate_objects(result: list("$水たまり"), cent: "7:7", sq_size: 15, objects: "4")`
-    def locate_objects(result:, sq_size: 5, cent: player, objects: "ABCD")
+    def locate_objects(result:, sq_size: 5, cent: nil, objects: "ABCD")
       result ||= List.new
 
+      # Parse center position
+      if cent.nil?
+        center_x, center_y = @player_position
+      else
+        pos = Position.new(cent)
+        center_x, center_y = pos.x, pos.y
+      end
+
+      # Calculate search area bounds
+      half_size = sq_size / 2
+      min_x = [center_x - half_size, 0].max
+      max_x = [center_x + half_size, 14].min
+      min_y = [center_y - half_size, 0].max
+      max_y = [center_y + half_size, 14].min
+
       object_positions = []
-      result.replace(object_positions.map { |x| Position.new(x).to_s })
+
+      # Search for objects in the specified area
+      (min_y..max_y).each do |y|
+        (min_x..max_x).each do |x|
+          cell_value = @my_map[y][x]
+
+          # Skip unknown cells
+          next if cell_value == -1
+
+          # Check if cell contains any of the target objects
+          cell_str = cell_value.to_s
+          if objects.include?(cell_str)
+            object_positions << [x, y]
+          end
+        end
+      end
+
+      # Sort by y coordinate first, then x coordinate
+      object_positions.sort! { |a, b| (a[1] != b[1]) ? (a[1] <=> b[1]) : (a[0] <=> b[0]) }
+
+      # Convert to position strings
+      result.replace(object_positions.map { |coords| Position.new(coords[0], coords[1]).to_s })
       result
     end
 
@@ -465,8 +752,8 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player
-      # Stub implementation - returns nil
-      nil
+      return nil unless @other_player_position
+      Position.new(@other_player_position[0], @other_player_position[1]).to_s
     end
 
     # :call-seq:
@@ -485,8 +772,7 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_x
-      # Stub implementation - returns nil
-      nil
+      @other_player_position ? @other_player_position[0] : nil
     end
 
     # :call-seq:
@@ -505,8 +791,7 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_y
-      # Stub implementation - returns nil
-      nil
+      @other_player_position ? @other_player_position[1] : nil
     end
 
     # :call-seq:
@@ -523,8 +808,8 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy
-      # Stub implementation - returns nil
-      nil
+      return nil unless @enemy_position
+      Position.new(@enemy_position[0], @enemy_position[1]).to_s
     end
 
     # :call-seq:
@@ -541,8 +826,7 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_x
-      # Stub implementation - returns nil
-      nil
+      @enemy_position ? @enemy_position[0] : nil
     end
 
     # :call-seq:
@@ -559,8 +843,7 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_y
-      # Stub implementation - returns nil
-      nil
+      @enemy_position ? @enemy_position[1] : nil
     end
 
     # :call-seq:
@@ -576,8 +859,7 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal
-      # Stub implementation - returns nil
-      nil
+      Position.new(@goal_position[0], @goal_position[1]).to_s
     end
 
     # :call-seq:
@@ -593,8 +875,7 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_x
-      # Stub implementation - returns nil
-      nil
+      @goal_position[0]
     end
 
     # :call-seq:
@@ -610,8 +891,7 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_y
-      # Stub implementation - returns nil
-      nil
+      @goal_position[1]
     end
 
     # :call-seq:
@@ -627,7 +907,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player
-      position(0, 0)
+      Position.new(@player_position[0], @player_position[1]).to_s
     end
 
     # :call-seq:
@@ -643,7 +923,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player_x
-      0
+      @player_position[0]
     end
 
     # :call-seq:
@@ -659,7 +939,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player_y
-      0
+      @player_position[1]
     end
 
     # :call-seq:
@@ -742,15 +1022,105 @@ module Smalruby3
     #
     # - AI開発時の動作確認に使うことを想定しています。
     def set_message(message)
-      # Stub implementation - just log the message
-      log("Message: #{message}")
+      @current_message = message.to_s[0, 100] # Limit to 100 characters
+      log("Message: #{@current_message}")
+
+      send_json_message({
+        type: "set_message",
+        message: @current_message,
+        turn: @turn_number
+      })
     end
 
     private
 
+    def update_map_from_area_data(area_data, center_x, center_y)
+      return unless area_data["map"]
+
+      # Update 5x5 area around center point
+      area_map = area_data["map"]
+      (-2..2).each do |dy|
+        (-2..2).each do |dx|
+          map_x = center_x + dx
+          map_y = center_y + dy
+          area_idx_x = dx + 2
+          area_idx_y = dy + 2
+
+          if map_x >= 0 && map_x < 15 && map_y >= 0 && map_y < 15 &&
+              area_idx_x >= 0 && area_idx_x < 5 && area_idx_y >= 0 && area_idx_y < 5
+            @my_map[map_y][map_x] = area_map[area_idx_y][area_idx_x]
+          end
+        end
+      end
+
+      # Update other player position from area data
+      if area_data["other_player"]
+        @other_player_position = [area_data["other_player"]["x"], area_data["other_player"]["y"]]
+      end
+
+      # Update enemy position from area data
+      if area_data["enemies"] && !area_data["enemies"].empty?
+        enemy = area_data["enemies"].first
+        @enemy_position = [enemy["x"], enemy["y"]]
+      end
+    end
+
+    # Dijkstra pathfinding implementation
+    def dijkstra_pathfind(start_x, start_y, goal_x, goal_y, except_cells = [])
+      # Convert except_cells to set for faster lookup
+      except_set = Set.new(except_cells)
+
+      # Priority queue: [distance, x, y, path]
+      queue = [[0, start_x, start_y, [[start_x, start_y]]]]
+      visited = Set.new
+
+      until queue.empty?
+        distance, x, y, path = queue.shift
+
+        # Skip if already visited
+        next if visited.include?([x, y])
+        visited.add([x, y])
+
+        # Check if we reached the goal
+        if x == goal_x && y == goal_y
+          return path
+        end
+
+        # Explore neighbors (up, down, left, right)
+        [[0, -1], [0, 1], [-1, 0], [1, 0]].each do |dx, dy|
+          next_x = x + dx
+          next_y = y + dy
+
+          # Check bounds
+          next if next_x < 0 || next_x >= 15 || next_y < 0 || next_y >= 15
+
+          # Skip if in except_cells
+          next if except_set.include?([next_x, next_y])
+
+          # Skip if already visited
+          next if visited.include?([next_x, next_y])
+
+          # Check if cell is passable
+          cell_value = @my_map[next_y][next_x]
+          # Passable: 0 (space), 3 (goal), 4 (water), -1 (unknown - assume passable)
+          next unless [0, 3, 4, -1].include?(cell_value)
+
+          # Add to queue with updated path
+          new_path = path + [[next_x, next_y]]
+          queue << [distance + 1, next_x, next_y, new_path]
+        end
+
+        # Sort queue by distance (simple priority queue)
+        queue.sort_by! { |item| item[0] }
+      end
+
+      # No path found, return just the starting position
+      [[start_x, start_y]]
+    end
+
     def log(message)
       # Simple logging - could be expanded if needed
-      puts message
+      warn message if ENV["KOSHIEN_DEBUG"]
     end
   end
 end
