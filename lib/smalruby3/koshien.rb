@@ -1,6 +1,7 @@
 require "singleton"
 require "json"
 require "timeout"
+require "time"
 
 module Smalruby3
   # スモウルビー甲子園のAIを作るためのクラス
@@ -12,6 +13,7 @@ module Smalruby3
     attr_accessor :player_position, :goal_position, :other_player_position, :enemy_position
     attr_accessor :my_map, :item_locations, :dynamite_count, :bomb_count
     attr_accessor :current_message, :action_count, :last_map_area_info
+    attr_accessor :actions, :initialized, :initialization_received, :current_turn_data, :current_turn
 
     def initialize
       @io_input = $stdin
@@ -30,19 +32,74 @@ module Smalruby3
       @current_message = ""
       @action_count = 0
       @last_map_area_info = {}
+      @actions = []
+      @initialized = false
+      @initialization_received = false
+      @current_turn_data = nil
+      @current_turn = 0
     end
 
     # Setup JSON communication with AI process
     def setup_json_communication
-      # Send initial ready signal
-      send_json_message({type: "ready"})
+      @initialized = true
+      @actions = []
+      @initialization_received = false
 
-      # Wait for game start signal
+      # Wait for initialization message from AiProcessManager first
       message = receive_json_message
-      if message && message["type"] == "game_start"
-        @game_state = message["game_state"] || {}
-        update_game_state_from_json(@game_state)
+
+      if message && message["type"] == "initialize"
+        @game_state = message["data"] || {}
+        @rand_seed = @game_state["rand_seed"]
+        srand(@rand_seed) if @rand_seed
+
+        # Initialize position from initial_position if available
+        if @game_state["initial_position"]
+          @player_position = [
+            @game_state["initial_position"]["x"] || 0,
+            @game_state["initial_position"]["y"] || 0
+          ]
+        end
+
+        @initialization_received = true
+        true
+      else
+        false
       end
+    end
+
+    # Main game loop - wait for turns and execute
+    def run_game_loop
+      loop do
+        message = receive_json_message
+        break unless message
+
+        case message["type"]
+        when "turn_start"
+          handle_turn_start_message(message["data"])
+        when "turn_end_confirm"
+          handle_turn_end_confirm(message["data"])
+        when "game_end"
+          handle_game_end(message["data"])
+          break
+        else
+          send_error_message("Unknown message type: #{message["type"]}")
+        end
+      end
+    end
+
+    # Action collection methods
+    def add_action(action)
+      @actions ||= []
+      @actions << action
+    end
+
+    def clear_actions
+      @actions = []
+    end
+
+    def get_actions
+      (@actions || []).dup
     end
 
     # Handle turn start from AI process manager
@@ -69,16 +126,56 @@ module Smalruby3
 
     # Send turn over signal to AI process
     def send_turn_over
+      actions = get_actions
       send_json_message({
         type: "turn_over",
-        turn: @turn_number,
-        message: @current_message,
-        actions_taken: @action_count
+        timestamp: Time.now.utc.iso8601,
+        data: {
+          actions: actions
+        }
       })
+      clear_actions
 
       # Wait for acknowledgment
       response = receive_json_message
       response && response["type"] == "turn_acknowledged"
+    end
+
+    # Turn start message handler (different from handle_turn_start)
+    def handle_turn_start_message(data)
+      @current_turn_data = data
+      @current_turn = data["turn_number"]
+
+      # Update local position tracking when we receive turn data
+      if data["current_player"]
+        current_player = data["current_player"]
+        if current_player["x"] && current_player["y"]
+          @player_position = [current_player["x"], current_player["y"]]
+        end
+      end
+
+      # Clear previous actions
+      clear_actions
+    end
+
+    def handle_turn_end_confirm(data)
+      # Turn processing completed
+    end
+
+    def handle_game_end(data)
+      # Game finished
+    end
+
+    def send_error_message(error_message)
+      send_json_message({
+        type: "error",
+        timestamp: Time.now.utc.iso8601,
+        data: {
+          error_type: "runtime_error",
+          message: error_message,
+          details: {}
+        }
+      })
     end
 
     private
