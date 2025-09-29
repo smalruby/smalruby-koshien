@@ -402,9 +402,12 @@ class GameEngine
   end
 
   def find_enemy_positions(game_map)
-    # TODO: Parse map data to find enemy positions
-    # For now, return empty array
-    []
+    # 敵はゴール位置に初期配置される（参考実装のGame.rb:143に基づく）
+    goal_pos = game_map.goal_position
+    enemy_position = {x: goal_pos["x"], y: goal_pos["y"]}
+
+    Rails.logger.debug "Enemy initial position at goal: #{enemy_position.inspect}"
+    [enemy_position]
   end
 
   def reached_goal?(player)
