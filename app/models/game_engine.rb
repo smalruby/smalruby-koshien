@@ -3,11 +3,13 @@ require "fileutils"
 class GameEngine
   include GameConstants
 
-  attr_reader :game, :current_round
+  attr_reader :game, :current_round, :max_rounds, :max_turns
 
-  def initialize(game)
+  def initialize(game, options = {})
     @game = game
     @current_round = nil
+    @max_rounds = options[:max_rounds] || N_ROUNDS
+    @max_turns = options[:max_turns] || MAX_TURN
   end
 
   def execute_battle
@@ -17,7 +19,7 @@ class GameEngine
       # Execute both rounds
       round_results = []
 
-      (1..N_ROUNDS).each do |round_number|
+      (1..@max_rounds).each do |round_number|
         Rails.logger.info "Starting round #{round_number} for game #{game.id}"
 
         round_result = execute_round(round_number)
@@ -53,7 +55,7 @@ class GameEngine
 
     begin
       # Execute turns until round is finished
-      (1..MAX_TURN).each do |turn_number|
+      (1..@max_turns).each do |turn_number|
         Rails.logger.debug "Executing turn #{turn_number} for round #{round_number}"
 
         turn_result = execute_turn(turn_number)
@@ -340,7 +342,7 @@ class GameEngine
     return {type: :all_finished} if active_players.empty?
 
     # Check if max turns reached
-    return {type: :max_turns} if turn.turn_number >= MAX_TURN
+    return {type: :max_turns} if turn.turn_number >= @max_turns
 
     {type: :continue}
   end
@@ -479,7 +481,7 @@ class GameEngine
         bomb_left: player.bomb_left
       },
       game_constants: {
-        max_turns: MAX_TURN,
+        max_turns: @max_turns,
         turn_timeout: TURN_DURATION
       },
       rand_seed: generate_rand_seed

@@ -57,7 +57,8 @@ RSpec.describe "Enemy Behavior Integration", type: :feature do
   # Corresponds to script/test_enemy_behavior.rb
   describe "Enemy Movement Behavior" do
     it "プレイヤーが射程外の時はランダムに移動する" do
-      engine = GameEngine.new(game)
+      # Use optimized engine with 1 round and 5 turns for speed
+      engine = GameEngine.new(game, max_rounds: 1, max_turns: 5)
 
       # Execute one round to test enemy behavior
       result = engine.send(:execute_round, 1)
@@ -81,7 +82,8 @@ RSpec.describe "Enemy Behavior Integration", type: :feature do
         battle_url: "test-close-enemy"
       )
 
-      engine = GameEngine.new(close_game)
+      # Use optimized engine with 1 round and 5 turns for speed
+      engine = GameEngine.new(close_game, max_rounds: 1, max_turns: 5)
       result = engine.send(:execute_round, 1)
 
       expect(result[:success]).to be true
@@ -102,7 +104,8 @@ RSpec.describe "Enemy Behavior Integration", type: :feature do
         battle_url: "test-adjacent-enemy"
       )
 
-      engine = GameEngine.new(adjacent_game)
+      # Use optimized engine with 1 round and 5 turns for speed
+      engine = GameEngine.new(adjacent_game, max_rounds: 1, max_turns: 5)
       result = engine.send(:execute_round, 1)
 
       expect(result[:success]).to be true
@@ -171,7 +174,8 @@ RSpec.describe "Enemy Behavior Integration", type: :feature do
     end
 
     it "プレイヤーとエネミーの衝突でスコアペナルティが発生する" do
-      engine = GameEngine.new(collision_game)
+      # Use optimized engine with 1 round and 10 turns for collision testing
+      engine = GameEngine.new(collision_game, max_rounds: 1, max_turns: 10)
       result = engine.execute_battle
 
       expect(result[:success]).to be true
@@ -188,7 +192,8 @@ RSpec.describe "Enemy Behavior Integration", type: :feature do
     end
 
     it "敵は初期位置がゴール座標に設定される" do
-      engine = GameEngine.new(collision_game)
+      # Use optimized engine for initialization test
+      engine = GameEngine.new(collision_game, max_rounds: 1, max_turns: 5)
       round = engine.send(:initialize_round, 1)
 
       enemy = round.enemies.first
@@ -230,7 +235,8 @@ RSpec.describe "Enemy Behavior Integration", type: :feature do
     end
 
     it "ターン41以降でangryモードがアクティブになる" do
-      engine = GameEngine.new(angry_game)
+      # Use 1 round with 45 turns to test angry mode activation at turn 41
+      engine = GameEngine.new(angry_game, max_rounds: 1, max_turns: 45)
       result = engine.execute_battle
 
       expect(result[:success]).to be true
@@ -248,7 +254,8 @@ RSpec.describe "Enemy Behavior Integration", type: :feature do
     end
 
     it "angryモードでは全マップでプレイヤーを追跡する" do
-      engine = GameEngine.new(angry_game)
+      # Use 1 round with 45 turns to test angry mode behavior
+      engine = GameEngine.new(angry_game, max_rounds: 1, max_turns: 45)
       result = engine.execute_battle
 
       expect(result[:success]).to be true
