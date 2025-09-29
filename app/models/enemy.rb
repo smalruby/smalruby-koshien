@@ -89,7 +89,12 @@ class Enemy < ApplicationRecord
     if angry?
       # 怒りモード：全マップでプレイヤーを探し、1歩だけ近づく
       target_player = find_player_angry(game_map_data, players, current_round)
-      move_towards_player_angry(game_map_data, target_player)
+      if target_player && position_x == target_player.position_x && position_y == target_player.position_y
+        # 同じマスにいる場合のみ移動しない（angry mode では隣接していても移動する）
+        Rails.logger.debug "Enemy (ANGRY) at same position as player, staying at (#{position_x}, #{position_y})"
+      else
+        move_towards_player_angry(game_map_data, target_player)
+      end
     elsif normal?
       # 通常モード：既存の3段階ロジック
       target_player = find_player_in_range(players, current_round)
