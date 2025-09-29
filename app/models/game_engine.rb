@@ -280,13 +280,18 @@ class GameEngine
   end
 
   def update_enemies(turn)
-    # Enemy AI logic will be implemented here
-    # For now, basic enemy behavior
+    # Enemy AI logic - move enemies based on player positions
     @current_round.enemies.each do |enemy|
       next if enemy.killed?
 
-      # Simple enemy movement logic
-      # TODO: Implement proper enemy AI
+      # Get current round players for enemy movement logic
+      players = @current_round.players.reload
+
+      # Execute enemy movement
+      enemy.move(game.game_map.map_data, players)
+      enemy.save!
+
+      Rails.logger.debug "Enemy moved to (#{enemy.position_x}, #{enemy.position_y})"
     end
   end
 
