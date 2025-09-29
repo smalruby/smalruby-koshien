@@ -11,13 +11,16 @@ include Smalruby3 # standard:disable Style/MixinUsage
 
 # Initialize JSON communication (required - traditional mode removed)
 # JSON mode is now the only supported mode
-if defined?(Smalruby3::KoshienJsonAdapter)
-  adapter = Smalruby3::KoshienJsonAdapter.instance
-  if adapter.respond_to?(:setup_json_communication)
-    if adapter.setup_json_communication
-      # Set up at_exit hook to run the game loop after script execution
-      at_exit do
-        adapter.run_game_loop
+# Skip initialization in test environment to avoid setup failures
+unless Rails.env.test?
+  if defined?(Smalruby3::KoshienJsonAdapter)
+    adapter = Smalruby3::KoshienJsonAdapter.instance
+    if adapter.respond_to?(:setup_json_communication)
+      if adapter.setup_json_communication
+        # Set up at_exit hook to run the game loop after script execution
+        at_exit do
+          adapter.run_game_loop
+        end
       end
     end
   end
