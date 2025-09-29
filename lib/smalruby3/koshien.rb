@@ -126,7 +126,12 @@ module Smalruby3
     end
 
     def goal_position
-      @game_state&.dig("game_map", "goal_position") || {x: 14, y: 14}
+      # Return instance variable if set (for tests), otherwise get from game state
+      @goal_position || @game_state&.dig("game_map", "goal_position") || {x: 14, y: 14}
+    end
+
+    def goal_position=(position)
+      @goal_position = position
     end
 
     # Update position when movements are planned (fallback position tracking)
@@ -395,10 +400,23 @@ module Smalruby3
       # Send ready message now that we have the player name
       if @initialization_received
         send_ready_message(@player_name)
+        return true
       end
 
-      log(%(プレイヤー名を設定します: name="#{name}"))
-      true
+      # For regular JSON mode (not AiProcessManager), send connect_game message
+      send_json_message({
+        type: "connect_game",
+        player_name: name
+      })
+
+      response = receive_json_message
+      if response && response["type"] == "connection_established"
+        log(%(プレイヤー名を設定します: name="#{name}"))
+        true
+      else
+        log("Failed to connect to game")
+        false
+      end
     end
 
     # :call-seq:
@@ -430,17 +448,34 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def get_map_area(position)
+      return nil if @action_count >= 2
+
       if position.is_a?(String) && position.include?(":")
         x, y = position.split(":").map(&:to_i)
 
-        # Request map area data from game engine
-        map_area_data = request_map_area(x, y)
+        if @initialization_received
+          # AI ProcessManager mode - use async communication
+          map_area_data = request_map_area(x, y)
+          add_action({action_type: "explore", target_position: {x: x, y: y}, area_size: 5})
+          @action_count += 1
+          map_area_data
+        else
+          # Traditional JSON mode - send get_map_area message and wait for response
+          send_json_message({
+            type: "get_map_area",
+            position: position,
+            x: x,
+            y: y
+          })
 
-        # Add exploration action for event logging
-        add_action({action_type: "explore", target_position: {x: x, y: y}, area_size: 5})
-
-        # Return the map area data to the AI script
-        map_area_data
+          response = receive_json_message
+          if response && response["type"] == "map_area_data"
+            @action_count += 1
+            response["data"]
+          else
+            nil
+          end
+        end
       end
     end
 
@@ -473,9 +508,34 @@ module Smalruby3
     def move_to(position)
       if position.is_a?(String) && position.include?(":")
         x, y = position.split(":").map(&:to_i)
-        add_action({action_type: "move", target_x: x, target_y: y})
-        # Track the intended movement for fallback position tracking
-        track_movement_action(x, y)
+
+        # For AI ProcessManager mode, use action-based approach
+        if @initialization_received
+          add_action({action_type: "move", target_x: x, target_y: y})
+          # Track the intended movement for fallback position tracking
+          track_movement_action(x, y)
+          return
+        end
+
+        # For traditional JSON mode, use synchronous approach
+        return nil if @action_count >= 2
+
+        send_json_message({
+          type: "move_to",
+          position: {x: x, y: y},
+          turn: @turn_number
+        })
+
+        response = receive_json_message
+        if response && response["type"] == "move_result"
+          if response["success"]
+            @player_position = [x, y]
+          end
+          @action_count += 1
+          return response["success"]
+        end
+
+        false
       end
     end
 
@@ -1231,7 +1291,13 @@ module Smalruby3
     #
     # - AI開発時の動作確認に使うことを想定しています。
     def set_message(message)
-      send_debug_message(message.to_s)
+      @current_message = message.to_s[0, 100] # Limit to 100 characters
+
+      send_json_message({
+        type: "set_message",
+        message: @current_message,
+        turn: @turn_number
+      })
     end
 
     private
