@@ -124,7 +124,9 @@ RSpec.describe AiEngine, type: :model do
     end
 
     context "実行時間が長すぎる場合" do
-      let(:ai_code) { "sleep(20)" }
+      let(:ai_code) { "sleep(2)" }
+      # Use optimized AI engine with 1 second timeout for faster testing
+      let(:ai_engine) { AiEngine.new(timeout_duration: 1) }
 
       it "AITimeoutErrorを発生させる" do
         expect {

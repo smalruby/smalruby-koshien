@@ -13,8 +13,9 @@ class AiEngine
   class AiTimeoutError < AiExecutionError; end
   class AiSecurityError < AiExecutionError; end
 
-  def initialize
+  def initialize(options = {})
     @execution_context = nil
+    @timeout_duration = options[:timeout_duration] || EXECUTION_TIMEOUT
     # Load Smalruby3 Koshien library
     load_koshien_library
   end
@@ -84,7 +85,7 @@ class AiEngine
     result = nil
 
     # Execute with timeout
-    Timeout.timeout(EXECUTION_TIMEOUT) do
+    Timeout.timeout(@timeout_duration) do
       result = context.execute(ai_code)
     end
 
@@ -103,7 +104,7 @@ class AiEngine
     collected_actions = []
 
     # Execute with timeout for the entire AI execution
-    Timeout.timeout(EXECUTION_TIMEOUT) do
+    Timeout.timeout(@timeout_duration) do
       # Execute the AI code and collect all actions until a move is found
       loop do
         turn_over_count += 1
