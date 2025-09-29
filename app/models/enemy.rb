@@ -74,7 +74,7 @@ class Enemy < ApplicationRecord
     # 実装は競技サーバーのロジックに基づく
   end
 
-  # 敵の移動ロジック（全段階実装）
+  # 敵の移動ロジック（全段階実装 + 怒りモード）
   def move(game_map_data, players, current_round = nil)
     return unless position_x && position_y
 
@@ -82,21 +82,123 @@ class Enemy < ApplicationRecord
     self.previous_position_x = position_x
     self.previous_position_y = position_y
 
-    # プレイヤーが射程内にいるかチェック
-    target_player = find_player_in_range(players, current_round)
-    if target_player.nil?
-      # 第1段階：射程外の場合はランダム移動
-      move_randomly(game_map_data)
-    elsif too_close_to_player?(target_player)
-      # 第3段階：隣接している場合は移動しない
-      Rails.logger.debug "Enemy too close to player, staying at (#{position_x}, #{position_y})"
-    else
-      # 第2段階：射程内だが隣接していない場合はプレイヤーに接近
-      move_towards_player(game_map_data, target_player)
+    # 現在のターン数を取得してstateを更新
+    current_turn = get_current_turn(current_round)
+    update_enemy_state(current_turn)
+
+    if angry?
+      # 怒りモード：全マップでプレイヤーを探し、1歩だけ近づく
+      target_player = find_player_angry(game_map_data, players, current_round)
+      move_towards_player_angry(game_map_data, target_player)
+    elsif normal?
+      # 通常モード：既存の3段階ロジック
+      target_player = find_player_in_range(players, current_round)
+      if target_player.nil?
+        # 第1段階：射程外の場合はランダム移動
+        move_randomly(game_map_data)
+      elsif too_close_to_player?(target_player)
+        # 第3段階：隣接している場合は移動しない
+        Rails.logger.debug "Enemy too close to player, staying at (#{position_x}, #{position_y})"
+      else
+        # 第2段階：射程内だが隣接していない場合はプレイヤーに接近
+        move_towards_player(game_map_data, target_player)
+      end
     end
   end
 
   private
+
+  # 現在のターン数を取得
+  def get_current_turn(current_round)
+    # GameRoundから現在のターン数を取得
+    if current_round&.respond_to?(:game_turns)
+      current_round.game_turns.count + 1
+    else
+      1  # フォールバック
+    end
+  end
+
+  # Enemyの状態を更新（参考実装のstateメソッドに基づく）
+  def update_enemy_state(current_turn)
+    self.state = (current_turn >= ANGRY_TURN) ? :angry : :normal_state
+    save! if changed?
+  end
+
+  # 怒りモードでのプレイヤー探索（全マップ射程）
+  def find_player_angry(game_map_data, players, current_round)
+    require_relative "../../lib/dijkstra_search"
+
+    candidates = players.reject(&:finished?).map do |player|
+      graph_data = make_graph_data(game_map_data)
+      graph = DijkstraSearch::Graph.new(graph_data)
+
+      start_id = "m#{position_x}_#{position_y}"
+      goal_id = "m#{player.position_x}_#{player.position_y}"
+
+      if start_id == goal_id
+        [player, 0]
+      else
+        routes = graph.get_route(start_id, goal_id)
+        [player, routes.size - 1]  # routesには始点が含まれるので-1
+      end
+    rescue => e
+      Rails.logger.error "Enemy angry path error for player #{player.id}: #{e.message}"
+      [player, Float::INFINITY]  # エラーの場合は無限大の距離
+    end.sort_by { |_, distance| distance }
+
+    case candidates.length
+    when 0
+      nil
+    when 1
+      candidates.first[0]
+    else
+      if candidates.all? { |_, d| d == candidates.first[1] }
+        # 歩数が同じ場合はラウンドによって対象を変える（公平性のため）
+        if current_round&.respond_to?(:round_number)
+          round_index = current_round.round_number - 1
+          if round_index >= 0 && round_index < candidates.length
+            candidates[round_index][0]
+          else
+            candidates[0][0]
+          end
+        else
+          candidates[0][0]
+        end
+      else
+        candidates.first[0]
+      end
+    end
+  end
+
+  # 怒りモード時のプレイヤーへの移動（1歩のみ）
+  def move_towards_player_angry(game_map_data, player)
+    return unless player
+
+    require_relative "../../lib/dijkstra_search"
+
+    begin
+      graph_data = make_graph_data(game_map_data)
+      graph = DijkstraSearch::Graph.new(graph_data)
+
+      start_id = "m#{position_x}_#{position_y}"
+      goal_id = "m#{player.position_x}_#{player.position_y}"
+
+      routes = graph.get_route(start_id, goal_id)
+      routes.shift  # 始点を取り除く
+
+      # 怒りモードでは距離に関係なく1歩だけ近づく（n: 1相当）
+      if routes.any?
+        next_x, next_y = routes.first
+        self.position_x = next_x
+        self.position_y = next_y
+        Rails.logger.debug "Enemy (ANGRY) moved towards player from (#{previous_position_x}, #{previous_position_y}) to (#{position_x}, #{position_y})"
+      else
+        Rails.logger.debug "Enemy (ANGRY) already at target position"
+      end
+    rescue => e
+      Rails.logger.error "Enemy angry movement error: #{e.message}, staying in place"
+    end
+  end
 
   # 射程内のプレイヤーを探す（参考実装に基づく完全版）
   def find_player_in_range(players, current_round = nil)
