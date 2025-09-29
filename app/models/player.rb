@@ -6,7 +6,7 @@ class Player < ApplicationRecord
 
   validates :position_x, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :position_y, presence: true, numericality: {greater_than_or_equal_to: 0}
-  validates :score, presence: true, numericality: {greater_than_or_equal_to: 0}
+  validates :score, presence: true, numericality: true
   validates :dynamite_left, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :bomb_left, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :character_level, presence: true, numericality: {greater_than_or_equal_to: 1}

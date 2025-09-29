@@ -55,10 +55,9 @@ RSpec.describe Player, type: :model do
       expect(player.errors[:score]).to include("can't be blank")
     end
 
-    it "scoreが非負数である" do
-      player.score = -1
-      expect(player).not_to be_valid
-      expect(player.errors[:score]).to include("must be greater than or equal to 0")
+    it "scoreは負数も許可される（敵との接触でマイナスになるため）" do
+      player.score = -10  # ENEMY_DISCOUNT
+      expect(player).to be_valid
     end
 
     it "dynamite_leftが必須である" do

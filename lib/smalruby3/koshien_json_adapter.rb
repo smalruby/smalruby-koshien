@@ -79,6 +79,37 @@ module Smalruby3
       @actions << action
     end
 
+    # Request map area data from game engine (synchronous call)
+    def request_map_area(x, y)
+      warn "DEBUG: request_map_area starting for x=#{x}, y=#{y}"
+
+      # Send map area request message
+      request_message = {
+        type: "map_area_request",
+        timestamp: Time.now.utc.iso8601,
+        data: {
+          x: x,
+          y: y,
+          area_size: 5
+        }
+      }
+      warn "DEBUG: sending map area request: #{request_message.inspect}"
+      send_message(request_message)
+
+      # Wait for response
+      warn "DEBUG: waiting for map area response..."
+      response = read_message
+      warn "DEBUG: received response: #{response.inspect}"
+
+      if response && response["type"] == "map_area_response"
+        warn "DEBUG: got valid map_area_response"
+        response["data"]
+      else
+        warn "ERROR: Failed to get map area response: #{response.inspect}"
+        nil
+      end
+    end
+
     def clear_actions
       @actions.clear
     end
@@ -343,14 +374,34 @@ module Smalruby3
     end
 
     def get_map_area(position)
+      warn "DEBUG: get_map_area called with position: #{position.inspect}"
       if in_json_mode?
+        warn "DEBUG: in JSON mode, processing get_map_area"
         if position.is_a?(String) && position.include?(":")
           x, y = position.split(":").map(&:to_i)
+          warn "DEBUG: parsed coordinates x=#{x}, y=#{y}"
+
+          # Request map area data from game engine
+          warn "DEBUG: requesting map area data from game engine"
+          map_area_data = json_adapter.request_map_area(x, y)
+          warn "DEBUG: received map area data: #{map_area_data.inspect}"
+
+          # Add exploration action for event logging
           json_adapter.add_action({action_type: "explore", target_position: {x: x, y: y}, area_size: 5})
+          warn "DEBUG: added exploration action to queue"
+
+          # Return the map area data to the AI script
+          warn "DEBUG: returning map area data to AI script"
+          map_area_data
+        else
+          warn "DEBUG: invalid position format: #{position.inspect}"
+          nil
         end
       else
         # Original stub behavior
+        warn "DEBUG: not in JSON mode, using stub behavior"
         log("Get map area: #{position}")
+        nil
       end
     end
 

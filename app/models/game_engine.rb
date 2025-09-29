@@ -3,11 +3,14 @@ require "fileutils"
 class GameEngine
   include GameConstants
 
-  attr_reader :game, :current_round
+  attr_reader :game, :current_round, :max_rounds, :max_turns, :angry_turn
 
-  def initialize(game)
+  def initialize(game, options = {})
     @game = game
     @current_round = nil
+    @max_rounds = options[:max_rounds] || N_ROUNDS
+    @max_turns = options[:max_turns] || MAX_TURN
+    @angry_turn = options[:angry_turn]  # nil when not specified, uses Enemy::ANGRY_TURN default
   end
 
   def execute_battle
@@ -17,7 +20,7 @@ class GameEngine
       # Execute both rounds
       round_results = []
 
-      (1..N_ROUNDS).each do |round_number|
+      (1..@max_rounds).each do |round_number|
         Rails.logger.info "Starting round #{round_number} for game #{game.id}"
 
         round_result = execute_round(round_number)
@@ -53,7 +56,7 @@ class GameEngine
 
     begin
       # Execute turns until round is finished
-      (1..MAX_TURN).each do |turn_number|
+      (1..@max_turns).each do |turn_number|
         Rails.logger.debug "Executing turn #{turn_number} for round #{round_number}"
 
         turn_result = execute_turn(turn_number)
@@ -132,7 +135,7 @@ class GameEngine
     enemy_positions = find_enemy_positions(game_map)
 
     enemy_positions.each do |position|
-      round.enemies.create!(
+      enemy = round.enemies.create!(
         position_x: position[:x],
         position_y: position[:y],
         previous_position_x: position[:x],
@@ -140,6 +143,9 @@ class GameEngine
         state: :normal_state,
         enemy_kill: :no_kill
       )
+
+      # Set configurable angry_turn if specified
+      enemy.angry_turn = @angry_turn if @angry_turn
     end
   end
 
@@ -280,13 +286,51 @@ class GameEngine
   end
 
   def update_enemies(turn)
-    # Enemy AI logic will be implemented here
-    # For now, basic enemy behavior
+    # Enemy AI logic - move enemies based on player positions
     @current_round.enemies.each do |enemy|
       next if enemy.killed?
 
-      # Simple enemy movement logic
-      # TODO: Implement proper enemy AI
+      # Get current round players for enemy movement logic
+      players = @current_round.players.reload
+
+      # Execute enemy movement with current round information
+      enemy.move(game.game_map.map_data, players, @current_round)
+      enemy.save!
+
+      Rails.logger.debug "Enemy moved to (#{enemy.position_x}, #{enemy.position_y})"
+
+      # Check for enemy-player collisions and apply score penalties
+      check_enemy_player_collisions(enemy, players, turn)
+    end
+  end
+
+  # Check for collisions between enemy and players, apply score penalties
+  def check_enemy_player_collisions(enemy, players, turn)
+    players.each_with_index do |player, player_index|
+      next if player.finished?
+
+      # Check if player encounters enemy (same position)
+      if player.encount_enemy?(enemy.api_info)
+        # Apply score penalty for enemy encounter
+        original_score = player.score
+        player.score += ENEMY_DISCOUNT
+        player.save!
+
+        Rails.logger.info "Turn #{turn.turn_number}: Player #{player.player_ai.name} hit enemy at (#{player.position_x}, #{player.position_y}). Score: #{original_score} -> #{player.score} (#{ENEMY_DISCOUNT})"
+
+        # Create game event for collision (if game_events is available)
+        if @current_round.respond_to?(:game_events)
+          @current_round.game_events.create!(
+            turn_number: turn.turn_number,
+            event_type: "enemy_collision",
+            description: "Player #{player.player_ai.name} collided with enemy",
+            player_id: player.id,
+            position_x: player.position_x,
+            position_y: player.position_y,
+            score_change: ENEMY_DISCOUNT
+          )
+        end
+      end
     end
   end
 
@@ -302,7 +346,7 @@ class GameEngine
     return {type: :all_finished} if active_players.empty?
 
     # Check if max turns reached
-    return {type: :max_turns} if turn.turn_number >= MAX_TURN
+    return {type: :max_turns} if turn.turn_number >= @max_turns
 
     {type: :continue}
   end
@@ -397,9 +441,12 @@ class GameEngine
   end
 
   def find_enemy_positions(game_map)
-    # TODO: Parse map data to find enemy positions
-    # For now, return empty array
-    []
+    # 敵はゴール位置に初期配置される（参考実装のGame.rb:143に基づく）
+    goal_pos = game_map.goal_position
+    enemy_position = {x: goal_pos["x"], y: goal_pos["y"]}
+
+    Rails.logger.debug "Enemy initial position at goal: #{enemy_position.inspect}"
+    [enemy_position]
   end
 
   def reached_goal?(player)
@@ -438,7 +485,7 @@ class GameEngine
         bomb_left: player.bomb_left
       },
       game_constants: {
-        max_turns: MAX_TURN,
+        max_turns: @max_turns,
         turn_timeout: TURN_DURATION
       },
       rand_seed: generate_rand_seed
