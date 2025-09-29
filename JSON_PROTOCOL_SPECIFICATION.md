@@ -2,13 +2,13 @@
 
 ## 概要
 
-この仕様は、AiEngineとAIプロセス間の標準入出力を使用したJSON形式の通信プロトコルを定義します。このプロトコルにより、独立したプロセスとして実行されるAIコードと、ゲームエンジン間での安全な情報交換を実現します。
+この仕様は、AiProcessManagerとAIプロセス間の標準入出力を使用したJSON形式の通信プロトコルを定義します。このプロトコルにより、独立したプロセスとして実行されるAIコードと、ゲームエンジン間での安全な情報交換を実現します。
 
 ## 基本原則
 
 ### 通信方式
-- **標準入力**: AiEngine → AIプロセス（JSON形式）
-- **標準出力**: AIプロセス → AiEngine（JSON形式）
+- **標準入力**: AiProcessManager → AIプロセス（JSON形式）
+- **標準出力**: AIプロセス → AiProcessManager（JSON形式）
 - **エンコーディング**: UTF-8
 - **区切り文字**: 各JSONメッセージは改行文字(`\n`)で区切る
 
@@ -23,7 +23,7 @@
 }
 ```
 
-## 入力メッセージ (AiEngine → AIプロセス)
+## 入力メッセージ (AiProcessManager → AIプロセス)
 
 ### 1. プロセス初期化メッセージ
 
@@ -160,7 +160,7 @@ AIプロセスからturn_overアクションを受信した後の確認：
 }
 ```
 
-## 出力メッセージ (AIプロセス → AiEngine)
+## 出力メッセージ (AIプロセス → AiProcessManager)
 
 ### 1. 準備完了メッセージ
 
@@ -282,27 +282,27 @@ AIプロセス起動時に送信する準備完了通知：
 ### 1. 初期化フェーズ
 
 ```
-AiEngine → AIプロセス: initialize メッセージ
-AIプロセス → AiEngine: ready メッセージ
+AiProcessManager → AIプロセス: initialize メッセージ
+AIプロセス → AiProcessManager: ready メッセージ
 ```
 
 ### 2. ゲームループ
 
 ```
 ゲームループ（最大50ターン）:
-  AiEngine → AIプロセス: turn_start メッセージ
+  AiProcessManager → AIプロセス: turn_start メッセージ
 
   AIプロセス処理:
-    AIプロセス → AiEngine: debug メッセージ (任意)
-    AIプロセス → AiEngine: turn_over メッセージ (最大2つのアクションを含む)
+    AIプロセス → AiProcessManager: debug メッセージ (任意)
+    AIプロセス → AiProcessManager: turn_over メッセージ (最大2つのアクションを含む)
 
-  AiEngine → AIプロセス: turn_end_confirm メッセージ
+  AiProcessManager → AIプロセス: turn_end_confirm メッセージ
 ```
 
 ### 3. 終了フェーズ
 
 ```
-AiEngine → AIプロセス: game_end メッセージ
+AiProcessManager → AIプロセス: game_end メッセージ
 AIプロセス終了
 ```
 
@@ -371,19 +371,19 @@ AIプロセスが5秒間出力を行わない場合：
 ### Stage 1（タイムアウト）の通信例
 
 ```
-AiEngine → AIプロセス:
+AiProcessManager → AIプロセス:
 {
   "type": "initialize",
   "data": { /* 初期化データ */ }
 }
 
-AIプロセス → AiEngine:
+AIプロセス → AiProcessManager:
 {
   "type": "ready",
   "data": { "player_name": "timeout_player" }
 }
 
-AiEngine → AIプロセス:
+AiProcessManager → AIプロセス:
 {
   "type": "turn_start",
   "data": { "turn_number": 1, /* ゲーム状態 */ }
@@ -392,16 +392,16 @@ AiEngine → AIプロセス:
 // AIプロセスは何も出力しない（タイムアウト）
 
 5秒後:
-AiEngineがプロセス強制終了
+AiProcessManagerがプロセス強制終了
 ```
 
 ### Stage 3（水平移動）の通信例
 
 ```
 // ターン1（右に移動）
-AiEngine → AIプロセス: turn_start (turn_number: 1)
+AiProcessManager → AIプロセス: turn_start (turn_number: 1)
 
-AIプロセス → AiEngine:
+AIプロセス → AiProcessManager:
 {
   "type": "turn_over",
   "data": {
@@ -412,9 +412,9 @@ AIプロセス → AiEngine:
 }
 
 // ターン2（左に移動）
-AiEngine → AIプロセス: turn_start (turn_number: 2)
+AiProcessManager → AIプロセス: turn_start (turn_number: 2)
 
-AIプロセス → AiEngine:
+AIプロセス → AiProcessManager:
 {
   "type": "turn_over",
   "data": {
@@ -453,7 +453,7 @@ AIプロセス → AiEngine:
 
 ## 実装ガイドライン
 
-### AiEngine側実装
+### AiProcessManager側実装
 1. JSON生成・パース機能
 2. プロセス管理（起動・停止・監視）
 3. タイムアウト管理

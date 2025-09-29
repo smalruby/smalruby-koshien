@@ -10,9 +10,8 @@
 
 1. **BattleJob** - ゲーム実行のための非同期ジョブハンドラー (app/jobs/)
 2. **GameEngine** - メインゲーム調整とバトル管理 (app/models/)
-3. **AiEngine** - サンドボックス化された安全なRubyコード実行 (app/models/)
-4. **TurnProcessor** - 個別ターンロジックとゲームメカニクス (app/models/)
-5. **GameConstants** - ゲーム設定と定数 (app/models/concerns/)
+3. **TurnProcessor** - 個別ターンロジックとゲームメカニクス (app/models/)
+4. **GameConstants** - ゲーム設定と定数 (app/models/concerns/)
 
 ### データモデル
 
@@ -412,9 +411,8 @@ BattleJob.perform_now(game_id)
 包括的なテストスイートがカバーする項目：
 
 1. **GameEngine テスト** - バトル実行、ラウンド管理、勝者決定
-2. **AiEngine テスト** - コード実行、セキュリティ、APIメソッド
-3. **TurnProcessor テスト** - 移動、アイテム、衝突、スコア
-4. **BattleJob テスト** - 非同期実行、エラーハンドリング
+2. **TurnProcessor テスト** - 移動、アイテム、衝突、スコア
+3. **BattleJob テスト** - 非同期実行、エラーハンドリング
 
 ### テスト例
 
