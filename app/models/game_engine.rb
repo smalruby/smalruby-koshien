@@ -3,13 +3,14 @@ require "fileutils"
 class GameEngine
   include GameConstants
 
-  attr_reader :game, :current_round, :max_rounds, :max_turns
+  attr_reader :game, :current_round, :max_rounds, :max_turns, :angry_turn
 
   def initialize(game, options = {})
     @game = game
     @current_round = nil
     @max_rounds = options[:max_rounds] || N_ROUNDS
     @max_turns = options[:max_turns] || MAX_TURN
+    @angry_turn = options[:angry_turn]  # nil when not specified, uses Enemy::ANGRY_TURN default
   end
 
   def execute_battle
@@ -134,7 +135,7 @@ class GameEngine
     enemy_positions = find_enemy_positions(game_map)
 
     enemy_positions.each do |position|
-      round.enemies.create!(
+      enemy = round.enemies.create!(
         position_x: position[:x],
         position_y: position[:y],
         previous_position_x: position[:x],
@@ -142,6 +143,9 @@ class GameEngine
         state: :normal_state,
         enemy_kill: :no_kill
       )
+
+      # Set configurable angry_turn if specified
+      enemy.angry_turn = @angry_turn if @angry_turn
     end
   end
 

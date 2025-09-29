@@ -8,8 +8,11 @@ class Enemy < ApplicationRecord
 
   # 敵が移動可能なマップチップ
   MOVABLE_CHIPS = [MAP_BLANK, MAP_WATER, MAP_GOAL].freeze
-  # 怒りモードになるターン
+  # 怒りモードになるターン（デフォルト値）
   ANGRY_TURN = 41
+
+  # configurable angry turn (for testing purposes)
+  attr_accessor :angry_turn
 
   enum :state, {
     normal_state: 0,
@@ -125,7 +128,8 @@ class Enemy < ApplicationRecord
 
   # Enemyの状態を更新（参考実装のstateメソッドに基づく）
   def update_enemy_state(current_turn)
-    self.state = (current_turn >= ANGRY_TURN) ? :angry : :normal_state
+    angry_threshold = angry_turn || ANGRY_TURN
+    self.state = (current_turn >= angry_threshold) ? :angry : :normal_state
     save! if changed?
   end
 

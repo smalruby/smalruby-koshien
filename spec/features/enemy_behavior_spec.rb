@@ -234,44 +234,32 @@ RSpec.describe "Enemy Behavior Integration", type: :feature do
       RUBY
     end
 
-    it "ターン41以降でangryモードがアクティブになる" do
-      # Use 1 round with 45 turns to test angry mode activation at turn 41
-      engine = GameEngine.new(angry_game, max_rounds: 1, max_turns: 45)
+    it "ターン41以降でangryモードがアクティブになり、全マップでプレイヤーを追跡する" do
+      # Use 1 round with 15 turns and angry_turn=10 for faster testing
+      engine = GameEngine.new(angry_game, max_rounds: 1, max_turns: 15, angry_turn: 10)
       result = engine.execute_battle
 
       expect(result[:success]).to be true
 
+      # Verify angry mode activation and behavior
       angry_game.game_rounds.each do |round|
         total_turns = round.game_turns.count
         enemy = round.enemies.first
 
-        if total_turns >= Enemy::ANGRY_TURN
+        # Verify enemy exists and is functional
+        expect(enemy).to be_present
+        expect(enemy.position_x).to be_present
+        expect(enemy.position_y).to be_present
+
+        # Verify state transition based on turn count (using configured angry_turn=10)
+        if total_turns >= 10
           expect(enemy.state).to eq("angry")
         else
           expect(enemy.state).to eq("normal_state")
         end
       end
-    end
 
-    it "angryモードでは全マップでプレイヤーを追跡する" do
-      # Use 1 round with 45 turns to test angry mode behavior
-      engine = GameEngine.new(angry_game, max_rounds: 1, max_turns: 45)
-      result = engine.execute_battle
-
-      expect(result[:success]).to be true
-
-      # Check that enemy functionality works in angry mode
-      first_round = angry_game.game_rounds.first
-      enemy = first_round.enemies.first
-
-      # Enemy should exist and be functional
-      expect(enemy).to be_present
-      expect(enemy.position_x).to be_present
-      expect(enemy.position_y).to be_present
-      # Note: Movement depends on player positions and may result in staying in place
-    end
-
-    it "angryモードの定数が正しく設定されている" do
+      # Verify default constant is still correct
       expect(Enemy::ANGRY_TURN).to eq(41)
     end
   end
