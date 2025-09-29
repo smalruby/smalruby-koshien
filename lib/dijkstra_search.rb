@@ -4,7 +4,7 @@ module DijkstraSearch
   # 各点は"m0_0"のような形式のID文字列をもつ
   class Node
     attr_accessor :id, :edges, :cost, :done, :from
-    def initialize(id, edges=[], cost=nil, done=false)
+    def initialize(id, edges = [], cost = nil, done = false)
       @id, @edges, @cost, @done = id, edges, cost, done
     end
   end
@@ -38,7 +38,7 @@ module DijkstraSearch
       dijkstra(sid)
       base = @nodes.find { |node| node.id == gid }
       @res = [base]
-      while base = @nodes.find { |node| node.id == base.from }
+      while (base = @nodes.find { |node| node.id == base.from })
         @res << base
       end
       @res
@@ -68,20 +68,20 @@ module DijkstraSearch
     # sid : 始点のID
     def dijkstra(sid)
       @nodes.each do |node|
-        node.cost = node.id == sid ? 0 : nil
+        node.cost = (node.id == sid) ? 0 : nil
         node.done = false
         node.from = nil
       end
       loop do
         done_node = nil
         @nodes.each do |node|
-          next if node.done or node.cost.nil?
-          done_node = node if done_node.nil? or node.cost < done_node.cost
+          next if node.done || node.cost.nil?
+          done_node = node if done_node.nil? || node.cost < done_node.cost
         end
         break unless done_node
         done_node.done = true
         done_node.edges.each do |edge|
-          to = @nodes.find{ |node| node.id == edge.nid }
+          to = @nodes.find { |node| node.id == edge.nid }
           cost = done_node.cost + edge.cost
           from = done_node.id
           if to.cost.nil? || cost < to.cost

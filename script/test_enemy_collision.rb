@@ -3,36 +3,36 @@
 # Test enemy collision by using a goal-seeking AI that should encounter enemy at goal
 
 goal_seeker_code = <<~RUBY
-require "smalruby3"
-
-Stage.new("Stage", lists: []) do
-end
-
-Sprite.new("スプライト1") do
-  koshien.connect_game(name: "goal_seeker")
-
-  # Move toward goal where enemy is located
-  50.times do |turn|
-    current_x = koshien.player_x
-    current_y = koshien.player_y
-    goal_x = koshien.goal_x
-    goal_y = koshien.goal_y
-
-    # Simple pathfinding toward goal
-    if current_x < goal_x
-      koshien.move_to(koshien.position(current_x + 1, current_y))
-    elsif current_x > goal_x
-      koshien.move_to(koshien.position(current_x - 1, current_y))
-    elsif current_y < goal_y
-      koshien.move_to(koshien.position(current_x, current_y + 1))
-    elsif current_y > goal_y
-      koshien.move_to(koshien.position(current_x, current_y - 1))
-    end
-
-    koshien.set_message("Moving to goal: (" + goal_x.to_s + ", " + goal_y.to_s + ")")
-    koshien.turn_over
+  require "smalruby3"
+  
+  Stage.new("Stage", lists: []) do
   end
-end
+  
+  Sprite.new("スプライト1") do
+    koshien.connect_game(name: "goal_seeker")
+  
+    # Move toward goal where enemy is located
+    50.times do |turn|
+      current_x = koshien.player_x
+      current_y = koshien.player_y
+      goal_x = koshien.goal_x
+      goal_y = koshien.goal_y
+  
+      # Simple pathfinding toward goal
+      if current_x < goal_x
+        koshien.move_to(koshien.position(current_x + 1, current_y))
+      elsif current_x > goal_x
+        koshien.move_to(koshien.position(current_x - 1, current_y))
+      elsif current_y < goal_y
+        koshien.move_to(koshien.position(current_x, current_y + 1))
+      elsif current_y > goal_y
+        koshien.move_to(koshien.position(current_x, current_y - 1))
+      end
+  
+      koshien.set_message("Moving to goal: (" + goal_x.to_s + ", " + goal_y.to_s + ")")
+      koshien.turn_over
+    end
+  end
 RUBY
 
 goal_seeker_ai = PlayerAi.find_by(name: "goal_seeker") || PlayerAi.create!(
@@ -111,7 +111,7 @@ if result[:success]
       puts "Goal position: #{game_map.goal_position.inspect}"
       first_player = game.game_rounds.first.players.first
       puts "Player final position: (#{first_player.position_x}, #{first_player.position_y})"
-      puts "Distance to goal: #{(first_player.position_x - game_map.goal_position['x']).abs + (first_player.position_y - game_map.goal_position['y']).abs}"
+      puts "Distance to goal: #{(first_player.position_x - game_map.goal_position["x"]).abs + (first_player.position_y - game_map.goal_position["y"]).abs}"
     end
   end
 else
