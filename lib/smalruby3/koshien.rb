@@ -35,8 +35,8 @@ module Smalruby3
     # - 1ゲームにつき1回しか実行できません。
     # - 2回目以降は無視されます。
     def connect_game(name:)
-      warn "DEBUG original connect_game called with: #{name.inspect}"
-      log(%(プレイヤー名を設定します: name="#{name}"))
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -68,8 +68,8 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def get_map_area(position)
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -99,8 +99,8 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def move_to(position)
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -133,8 +133,8 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def set_dynamite(position)
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -164,8 +164,8 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def set_bomb(position)
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -186,8 +186,8 @@ module Smalruby3
     #
     # - (実行するとターンが終了するので) 1ターンに1回のみ
     def turn_over
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # --------------------------------------------------------------------------------
@@ -296,8 +296,8 @@ module Smalruby3
     # - マップ情報を取得していない座標を指定した場合は、 `-1` が返されます。
     # - マップエリア外を指定した場合は、 `nil` が返されます。
     def map(position)
-      # Stub implementation - returns -1 for unknown
-      -1
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -465,8 +465,8 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -485,8 +485,8 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_x
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -505,8 +505,8 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_y
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -523,8 +523,8 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -541,8 +541,8 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_x
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -559,8 +559,8 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_y
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -576,8 +576,8 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -593,8 +593,8 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_x
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -610,8 +610,8 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_y
-      # Stub implementation - returns nil
-      nil
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     # :call-seq:
@@ -742,16 +742,13 @@ module Smalruby3
     #
     # - AI開発時の動作確認に使うことを想定しています。
     def set_message(message)
-      # Stub implementation - just log the message
-      log("Message: #{message}")
+      # JSON mode only - implementation will be added during integration
+      raise "Traditional mode not supported. Use JSON mode only."
     end
 
     private
 
-    def log(message)
-      # Simple logging - could be expanded if needed
-      puts message
-    end
+    # Traditional mode log method removed - JSON mode only
   end
 end
 
