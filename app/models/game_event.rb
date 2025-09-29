@@ -36,6 +36,13 @@ class GameEvent < ApplicationRecord
   COLLECT_ITEM = "COLLECT_ITEM".freeze
   ENEMY_ATTACK = "ENEMY_ATTACK".freeze
   WALK_BONUS = "WALK_BONUS".freeze
+  EXPLORE = "EXPLORE".freeze
+  SET_DYNAMITE = "SET_DYNAMITE".freeze
+  SET_DYNAMITE_FAILED = "SET_DYNAMITE_FAILED".freeze
+  SET_BOMB = "SET_BOMB".freeze
+  SET_BOMB_FAILED = "SET_BOMB_FAILED".freeze
+  EXPLOSION = "EXPLOSION".freeze
+  WALL_DESTROYED = "WALL_DESTROYED".freeze
 
   EVENT_TYPES = [
     PLAYER_MOVE,
@@ -53,7 +60,14 @@ class GameEvent < ApplicationRecord
     PLAYER_COLLISION,
     COLLECT_ITEM,
     ENEMY_ATTACK,
-    WALK_BONUS
+    WALK_BONUS,
+    EXPLORE,
+    SET_DYNAMITE,
+    SET_DYNAMITE_FAILED,
+    SET_BOMB,
+    SET_BOMB_FAILED,
+    EXPLOSION,
+    WALL_DESTROYED
   ].freeze
 
   validates :event_type, inclusion: {in: EVENT_TYPES}

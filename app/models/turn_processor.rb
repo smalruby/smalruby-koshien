@@ -29,6 +29,9 @@ class TurnProcessor
     process_item_interactions
     process_enemy_interactions
 
+    # Process explosions (dynamites and bombs explode at end of turn)
+    process_explosions
+
     # Update scores and bonuses
     update_player_scores
   end
@@ -52,6 +55,10 @@ class TurnProcessor
         end
       when "use_item"
         process_item_usage(player, action[:item])
+      when "set_dynamite"
+        process_set_dynamite(player, action[:target_x], action[:target_y])
+      when "set_bomb"
+        process_set_bomb(player, action[:target_x], action[:target_y])
       when "wait"
         # Player chooses to wait, no action needed
         create_game_event(player, "WAIT")
@@ -257,11 +264,194 @@ class TurnProcessor
     end
   end
 
+  def process_set_dynamite(player, target_x, target_y)
+    # Check if player has dynamite left
+    unless player.can_use_dynamite?
+      create_game_event(player, "SET_DYNAMITE_FAILED", {
+        reason: "no_dynamite_left",
+        target: {x: target_x, y: target_y}
+      })
+      return
+    end
+
+    # Check if target position is valid for dynamite placement
+    unless valid_dynamite_position?(player, target_x, target_y)
+      create_game_event(player, "SET_DYNAMITE_FAILED", {
+        reason: "invalid_position",
+        target: {x: target_x, y: target_y}
+      })
+      return
+    end
+
+    # Place dynamite and consume one from player's inventory
+    player.use_dynamite
+    player.save!
+
+    # Add dynamite to the round's dynamite tracking
+    add_dynamite_to_round(target_x, target_y)
+
+    create_game_event(player, "SET_DYNAMITE", {
+      position: {x: target_x, y: target_y},
+      remaining: player.dynamite_left
+    })
+
+    Rails.logger.debug "Player #{player.id} set dynamite at (#{target_x},#{target_y})"
+  end
+
+  def process_set_bomb(player, target_x, target_y)
+    # Check if player has bomb left
+    unless player.can_use_bomb?
+      create_game_event(player, "SET_BOMB_FAILED", {
+        reason: "no_bomb_left",
+        target: {x: target_x, y: target_y}
+      })
+      return
+    end
+
+    # Check if target position is valid for bomb placement
+    unless valid_bomb_position?(player, target_x, target_y)
+      create_game_event(player, "SET_BOMB_FAILED", {
+        reason: "invalid_position",
+        target: {x: target_x, y: target_y}
+      })
+      return
+    end
+
+    # Place bomb and consume one from player's inventory
+    player.use_bomb
+    player.save!
+
+    # Add bomb to the round's bomb tracking
+    add_bomb_to_round(target_x, target_y)
+
+    create_game_event(player, "SET_BOMB", {
+      position: {x: target_x, y: target_y},
+      remaining: player.bomb_left
+    })
+
+    Rails.logger.debug "Player #{player.id} set bomb at (#{target_x},#{target_y})"
+  end
+
+  def valid_dynamite_position?(player, target_x, target_y)
+    # Can only place dynamite on current position or adjacent cells (manhattan distance <= 1)
+    player_distance = (player.position_x - target_x).abs + (player.position_y - target_y).abs
+    return false if player_distance > 1
+
+    # Check if position is within map bounds
+    map_data = game_round.game.game_map.map_data
+    return false if target_y < 0 || target_y >= map_data.length
+    return false if target_x < 0 || target_x >= map_data[target_y].length
+
+    # Can place on empty space or water, but not on walls or items
+    cell_value = map_data[target_y][target_x]
+    case cell_value
+    when MAP_BLANK, MAP_WATER
+      true
+    else
+      false
+    end
+  end
+
+  def valid_bomb_position?(player, target_x, target_y)
+    # Same rules as dynamite for now
+    valid_dynamite_position?(player, target_x, target_y)
+  end
+
+  def add_dynamite_to_round(x, y)
+    # Store dynamite position for end-of-turn explosion
+    @dynamites ||= []
+    @dynamites << {x: x, y: y}
+  end
+
+  def add_bomb_to_round(x, y)
+    # Store bomb position for end-of-turn explosion
+    @bombs ||= []
+    @bombs << {x: x, y: y}
+  end
+
+  def process_explosions
+    # Process dynamite explosions
+    if @dynamites&.any?
+      @dynamites.each do |dynamite|
+        explode_dynamite(dynamite[:x], dynamite[:y])
+      end
+      @dynamites = []
+    end
+
+    # Process bomb explosions
+    if @bombs&.any?
+      @bombs.each do |bomb|
+        explode_bomb(bomb[:x], bomb[:y])
+      end
+      @bombs = []
+    end
+  end
+
+  def explode_dynamite(x, y)
+    Rails.logger.debug "Dynamite exploding at (#{x},#{y})"
+    create_explosion(x, y, :dynamite)
+  end
+
+  def explode_bomb(x, y)
+    Rails.logger.debug "Bomb exploding at (#{x},#{y})"
+    create_explosion(x, y, :bomb)
+  end
+
   def create_explosion(x, y, type)
-    # TODO: Implement explosion logic
-    # - Destroy breakable walls
-    # - Damage enemies in range
-    # - Affect other players in range
+    map_data = game_round.game.game_map.map_data
+
+    # Destroy breakable walls in adjacent cells (following reference implementation)
+    # Reference: game.rb#568-576
+
+    # Check and destroy breakable walls in vertical directions (up/down)
+    [1, -1].each do |direction|  # UP_SIDE = 1, DOWN_SIDE = -1
+      target_x = x + direction
+      if target_x >= 0 && target_x < map_data[0].length &&
+          y >= 0 && y < map_data.length &&
+          map_data[y][target_x] == MAP_BREAKABLE_WALL
+
+        # Destroy the breakable wall
+        map_data[y][target_x] = MAP_BLANK
+        Rails.logger.debug "Destroyed breakable wall at (#{target_x}, #{y})"
+
+        # Update the game map
+        game_round.game.game_map.update!(map_data: map_data)
+
+        create_game_event(nil, "WALL_DESTROYED", {
+          position: {x: target_x, y: y},
+          explosion_source: {x: x, y: y},
+          explosion_type: type
+        })
+      end
+    end
+
+    # Check and destroy breakable walls in horizontal directions (left/right)
+    [1, -1].each do |direction|  # RIGHT_SIDE = 1, LEFT_SIDE = -1
+      target_y = y + direction
+      if x >= 0 && x < map_data[0].length &&
+          target_y >= 0 && target_y < map_data.length &&
+          map_data[target_y][x] == MAP_BREAKABLE_WALL
+
+        # Destroy the breakable wall
+        map_data[target_y][x] = MAP_BLANK
+        Rails.logger.debug "Destroyed breakable wall at (#{x}, #{target_y})"
+
+        # Update the game map
+        game_round.game.game_map.update!(map_data: map_data)
+
+        create_game_event(nil, "WALL_DESTROYED", {
+          position: {x: x, y: target_y},
+          explosion_source: {x: x, y: y},
+          explosion_type: type
+        })
+      end
+    end
+
+    # Create explosion event
+    create_game_event(nil, "EXPLOSION", {
+      position: {x: x, y: y},
+      type: type
+    })
 
     Rails.logger.debug "Explosion created at (#{x},#{y}) type: #{type}"
   end
