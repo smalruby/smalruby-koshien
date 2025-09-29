@@ -292,6 +292,39 @@ class GameEngine
       enemy.save!
 
       Rails.logger.debug "Enemy moved to (#{enemy.position_x}, #{enemy.position_y})"
+
+      # Check for enemy-player collisions and apply score penalties
+      check_enemy_player_collisions(enemy, players, turn)
+    end
+  end
+
+  # Check for collisions between enemy and players, apply score penalties
+  def check_enemy_player_collisions(enemy, players, turn)
+    players.each_with_index do |player, player_index|
+      next if player.finished?
+
+      # Check if player encounters enemy (same position)
+      if player.encount_enemy?(enemy.api_info)
+        # Apply score penalty for enemy encounter
+        original_score = player.score
+        player.score += ENEMY_DISCOUNT
+        player.save!
+
+        Rails.logger.info "Turn #{turn.turn_number}: Player #{player.player_ai.name} hit enemy at (#{player.position_x}, #{player.position_y}). Score: #{original_score} -> #{player.score} (#{ENEMY_DISCOUNT})"
+
+        # Create game event for collision (if game_events is available)
+        if @current_round.respond_to?(:game_events)
+          @current_round.game_events.create!(
+            turn_number: turn.turn_number,
+            event_type: "enemy_collision",
+            description: "Player #{player.player_ai.name} collided with enemy",
+            player_id: player.id,
+            position_x: player.position_x,
+            position_y: player.position_y,
+            score_change: ENEMY_DISCOUNT
+          )
+        end
+      end
     end
   end
 
