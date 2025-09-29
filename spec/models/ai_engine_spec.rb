@@ -154,6 +154,26 @@ RSpec.describe AiEngine, type: :model do
       expect(test_ai_engine.send(:valid_action?, action)).to be true
     end
 
+    it "有効なダイナマイト設置アクションを認識する" do
+      action = {type: "set_dynamite", target_x: 2, target_y: 3}
+      expect(test_ai_engine.send(:valid_action?, action)).to be true
+    end
+
+    it "有効な爆弾設置アクションを認識する" do
+      action = {type: "set_bomb", target_x: 4, target_y: 5}
+      expect(test_ai_engine.send(:valid_action?, action)).to be true
+    end
+
+    it "無効なダイナマイト設置アクションを拒否する" do
+      # 座標が不正な場合
+      action = {type: "set_dynamite", target_x: "invalid", target_y: 3}
+      expect(test_ai_engine.send(:valid_action?, action)).to be false
+
+      # 座標が不足している場合
+      action = {type: "set_dynamite", target_x: 2}
+      expect(test_ai_engine.send(:valid_action?, action)).to be false
+    end
+
     it "無効なアクションを拒否する" do
       action = {type: "invalid_action"}
       expect(test_ai_engine.send(:valid_action?, action)).to be false
@@ -270,6 +290,31 @@ RSpec.describe AiEngine, type: :model do
       it "待機アクションを追加する" do
         result = context.wait
         expect(result[:type]).to eq("wait")
+      end
+    end
+
+    describe "ダイナマイト/爆弾設置メソッド" do
+      let(:koshien) { context.koshien }
+
+      it "ダイナマイト設置アクションを追加する" do
+        koshien.set_dynamite("2:3")
+        expect(context.get_iteration_actions.last[:type]).to eq("set_dynamite")
+        expect(context.get_iteration_actions.last[:target_x]).to eq(2)
+        expect(context.get_iteration_actions.last[:target_y]).to eq(3)
+      end
+
+      it "爆弾設置アクションを追加する" do
+        koshien.set_bomb("4:5")
+        expect(context.get_iteration_actions.last[:type]).to eq("set_bomb")
+        expect(context.get_iteration_actions.last[:target_x]).to eq(4)
+        expect(context.get_iteration_actions.last[:target_y]).to eq(5)
+      end
+
+      it "引数なしの場合は現在位置に設置する" do
+        koshien.set_dynamite(nil)
+        expect(context.get_iteration_actions.last[:type]).to eq("set_dynamite")
+        expect(context.get_iteration_actions.last[:target_x]).to eq(test_player.position_x)
+        expect(context.get_iteration_actions.last[:target_y]).to eq(test_player.position_y)
       end
     end
   end

@@ -181,6 +181,8 @@ class AiEngine
       end
     when "use_item"
       %w[dynamite bomb].include?(action[:item])
+    when "set_dynamite", "set_bomb"
+      action[:target_x].is_a?(Integer) && action[:target_y].is_a?(Integer)
     when "wait"
       true
     else
@@ -504,6 +506,46 @@ class AiEngine
       def turn_over
         # End execution by throwing a special exception that we catch
         throw :turn_over
+      end
+
+      def set_dynamite(position)
+        Rails.logger.debug "AI attempting to set dynamite at: #{position.inspect}"
+        if position
+          # Extract coordinates from position string like "3:4"
+          if position.is_a?(String) && position.include?(":")
+            x, y = position.split(":").map(&:to_i)
+            Rails.logger.debug "Setting dynamite at coordinates: (#{x}, #{y})"
+            @context.add_action({type: "set_dynamite", target_x: x, target_y: y})
+          else
+            Rails.logger.debug "Invalid position format for dynamite: #{position}"
+          end
+        else
+          # Default to current player position when no position specified
+          my_pos = @context.get_my_position
+          Rails.logger.debug "Setting dynamite at current position: (#{my_pos["x"]}, #{my_pos["y"]})"
+          @context.add_action({type: "set_dynamite", target_x: my_pos["x"], target_y: my_pos["y"]})
+        end
+        nil
+      end
+
+      def set_bomb(position)
+        Rails.logger.debug "AI attempting to set bomb at: #{position.inspect}"
+        if position
+          # Extract coordinates from position string like "3:4"
+          if position.is_a?(String) && position.include?(":")
+            x, y = position.split(":").map(&:to_i)
+            Rails.logger.debug "Setting bomb at coordinates: (#{x}, #{y})"
+            @context.add_action({type: "set_bomb", target_x: x, target_y: y})
+          else
+            Rails.logger.debug "Invalid position format for bomb: #{position}"
+          end
+        else
+          # Default to current player position when no position specified
+          my_pos = @context.get_my_position
+          Rails.logger.debug "Setting bomb at current position: (#{my_pos["x"]}, #{my_pos["y"]})"
+          @context.add_action({type: "set_bomb", target_x: my_pos["x"], target_y: my_pos["y"]})
+        end
+        nil
       end
 
       def calc_route(result:, src: nil, dst: nil, except_cells: nil)
