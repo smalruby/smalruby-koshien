@@ -152,7 +152,7 @@ module Smalruby3
     # - 1ゲームにつき1回しか実行できません。
     # - 2回目以降は無視されます。
     def connect_game(name:)
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         @player_name = name
         log("プレイヤー名を設定します: name=\"#{name}\"")
@@ -164,6 +164,12 @@ module Smalruby3
 
         # Debug output
         warn "DEBUG connect_game: instance=#{object_id}, set @player_name=#{@player_name.inspect}"
+
+        # If not yet initialized, initialize now
+        if !@initialized
+          warn "DEBUG connect_game: Not initialized yet, calling setup_json_communication"
+          setup_json_communication
+        end
 
         # Send ready message now that we have the player name
         if @initialization_received
@@ -208,7 +214,7 @@ module Smalruby3
     #     - 使用回数を超えた命令は無視されます。
     def get_map_area(position)
       warn "DEBUG: get_map_area called with position: #{position.inspect}"
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         log("Get map area: #{position}")
         nil
@@ -269,7 +275,7 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def move_to(position)
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         log("Move to: #{position}")
       elsif in_json_mode?
@@ -315,7 +321,7 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def set_dynamite(position = nil)
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         log("Set dynamite at: #{position}")
       elsif in_json_mode?
@@ -357,7 +363,7 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def set_bomb(position = nil)
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         log("Set bomb at: #{position}")
       elsif in_json_mode?
@@ -390,13 +396,16 @@ module Smalruby3
     #
     # - (実行するとターンが終了するので) 1ターンに1回のみ
     def turn_over
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         log("Turn over")
       elsif in_json_mode?
+        warn "DEBUG turn_over: sending turn_over message"
         send_turn_over
+        warn "DEBUG turn_over: waiting for turn completion"
         # Wait for turn processing to complete before returning control to script
-        wait_for_turn_completion
+        result = wait_for_turn_completion
+        warn "DEBUG turn_over: wait_for_turn_completion returned: #{result}"
       else
         # Original stub behavior
         log("Turn over")
@@ -489,7 +498,7 @@ module Smalruby3
       src_coords = parse_position_string(src)
       dst_coords = parse_position_string(dst)
 
-      if Rails.env.test?
+      if in_test_env?
         # Simple stub for testing - return direct path
         route = [[src_coords[0], src_coords[1]], [dst_coords[0], dst_coords[1]]]
       elsif in_json_mode?
@@ -534,7 +543,7 @@ module Smalruby3
     # - マップ情報を取得していない座標を指定した場合は、 `-1` が返されます。
     # - マップエリア外を指定した場合は、 `nil` が返されます。
     def map(position)
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         -1
       elsif in_json_mode?
@@ -598,7 +607,7 @@ module Smalruby3
     #     ```
     # - さらに、そこからある座標のマップ情報を参照するには map_from メソッドを使います。
     def map_all
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         Map.new("").to_s
       elsif in_json_mode?
@@ -733,7 +742,7 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         nil
       else
@@ -758,7 +767,7 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_x
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         nil
       else
@@ -783,7 +792,7 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_y
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         nil
       else
@@ -806,7 +815,7 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         nil
       else
@@ -829,7 +838,7 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_x
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         nil
       else
@@ -852,7 +861,7 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_y
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         nil
       else
@@ -874,7 +883,7 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         "14:14"
       elsif in_json_mode?
@@ -898,7 +907,7 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_x
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         14
       elsif in_json_mode?
@@ -921,7 +930,7 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_y
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         14
       elsif in_json_mode?
@@ -944,7 +953,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         position(0, 0)
       elsif in_json_mode?
@@ -968,7 +977,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player_x
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         0
       elsif in_json_mode?
@@ -991,7 +1000,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player_y
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         0
       elsif in_json_mode?
@@ -1081,7 +1090,7 @@ module Smalruby3
     #
     # - AI開発時の動作確認に使うことを想定しています。
     def set_message(message)
-      if Rails.env.test?
+      if in_test_env?
         # Minimal stub for testing
         log("Message: #{message}")
       elsif in_json_mode?
@@ -1339,22 +1348,33 @@ module Smalruby3
     end
 
     def wait_for_turn_completion
+      warn "DEBUG wait_for_turn_completion: entering loop"
       loop do
+        warn "DEBUG wait_for_turn_completion: reading message"
         message = read_message
-        return false unless message
+        warn "DEBUG wait_for_turn_completion: received message: #{message.inspect}"
+
+        unless message
+          warn "DEBUG wait_for_turn_completion: no message received, returning false"
+          return false
+        end
 
         case message["type"]
         when "turn_end_confirm"
+          warn "DEBUG wait_for_turn_completion: handling turn_end_confirm"
           handle_turn_end_confirm(message["data"])
           return true # Turn completed, continue to next turn
         when "game_end"
+          warn "DEBUG wait_for_turn_completion: handling game_end"
           handle_game_end(message["data"])
           exit(0) # Game finished, exit script
         when "turn_start"
+          warn "DEBUG wait_for_turn_completion: handling turn_start"
           # New turn started, update state and return
           handle_turn_start(message["data"])
           return true
         else
+          warn "DEBUG wait_for_turn_completion: unexpected message type: #{message["type"]}"
           send_error_message("Unexpected message type during turn completion: #{message["type"]}")
           return false
         end
@@ -1465,8 +1485,12 @@ module Smalruby3
       data
     end
 
+    def in_test_env?
+      defined?(Rails) && Rails.env.test?
+    end
+
     def log(message)
-      if Rails.env.test?
+      if in_test_env?
         # Simple logging for testing
         puts message
       end

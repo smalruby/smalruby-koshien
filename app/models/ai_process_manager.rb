@@ -84,14 +84,17 @@ class AiProcessManager
     send_message(init_message)
 
     # Wait for ready response
+    Rails.logger.debug "AI Process waiting for ready message..."
     response = wait_for_message
+    Rails.logger.debug "AI Process received response: #{response.inspect}"
+
     if response && response["type"] == "ready"
       @player_name = response.dig("data", "player_name")
       @status = :ready
       Rails.logger.info "AI Process initialized: #{@player_name}"
       true
     else
-      Rails.logger.error "AI Process failed to respond with ready message"
+      Rails.logger.error "AI Process failed to respond with ready message, got: #{response.inspect}"
       @status = :failed
       false
     end
