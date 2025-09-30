@@ -64,16 +64,13 @@ begin
   # Check final positions
   game.reload
   final_round = game.game_rounds.last
-  if final_round
-    final_round.players.each do |player|
-      puts "\n#{player.player_ai.name}:"
-      puts "  Final Position: (#{player.position_x}, #{player.position_y})"
-      puts "  Score: #{player.score}"
-      puts "  Status: #{player.status}"
-      puts "  Turns completed: #{final_round.game_turns.count}"
-    end
+  final_round&.players&.each do |player|
+    puts "\n#{player.player_ai.name}:"
+    puts "  Final Position: (#{player.position_x}, #{player.position_y})"
+    puts "  Score: #{player.score}"
+    puts "  Status: #{player.status}"
+    puts "  Turns completed: #{final_round.game_turns.count}"
   end
-
 rescue => e
   puts "\nERROR: #{e.message}"
   puts e.backtrace.first(5).join("\n")
