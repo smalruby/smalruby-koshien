@@ -226,7 +226,7 @@ class GameEngine
         end
 
         # Start turn
-        turn_data = build_turn_data(player)
+        turn_data = build_turn_data(player, turn.turn_number)
         unless ai_manager.start_turn(**turn_data)
           raise "Failed to start AI turn for player #{player.id}"
         end
@@ -490,13 +490,13 @@ class GameEngine
     }
   end
 
-  def build_turn_data(player)
+  def build_turn_data(player, turn_number)
     # Build turn data for AiProcessManager turn execution
     api_info = player.api_info
     Rails.logger.debug "DEBUG build_turn_data: player.api_info = #{api_info.inspect}"
 
     turn_data = {
-      turn_number: @current_round.game_turns.count + 1,
+      turn_number: turn_number,
       current_player: api_info,
       other_players: @current_round.players.where.not(id: player.id).map(&:api_info),
       enemies: @current_round.enemies.map(&:api_info),
