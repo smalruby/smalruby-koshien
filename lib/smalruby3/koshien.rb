@@ -57,7 +57,11 @@ module DijkstraSearch
     # gid : 終点のID
     def get_route(sid, gid)
       result = route(sid, gid)
-      return [] if result.empty?
+      if result.empty?
+        # When destination is unreachable, return only starting position
+        sid =~ /\Am(\d+)_(\d+)\z/
+        return [[$1.to_i, $2.to_i]]
+      end
 
       result.reverse.map { |node|
         node.id =~ /\Am(\d+)_(\d+)\z/
@@ -406,6 +410,14 @@ module Smalruby3
         # Minimal stub for testing
         log("Turn over")
       elsif in_json_mode?
+        # Check if there's a queued turn_start message from previous turn
+        queued_turn_start = @message_queue.find { |msg| msg["type"] == "turn_start" }
+        if queued_turn_start
+          warn "DEBUG turn_over: found queued turn_start, processing it"
+          @message_queue.delete(queued_turn_start)
+          handle_turn_start(queued_turn_start["data"])
+        end
+
         warn "DEBUG turn_over: sending turn_over message"
         send_turn_over
         warn "DEBUG turn_over: waiting for turn completion"
@@ -1392,14 +1404,11 @@ module Smalruby3
           warn "DEBUG wait_for_turn_completion: handling game_end"
           handle_game_end(message["data"])
           exit(0) # Game finished, exit script
-        when "turn_start"
-          warn "DEBUG wait_for_turn_completion: handling turn_start"
-          # New turn started, update state and return
-          handle_turn_start(message["data"])
-          return true
-        when "map_area_response"
-          # Queue the delayed map_area_response for later retrieval
-          warn "DEBUG wait_for_turn_completion: queuing map_area_response message"
+        when "turn_start", "map_area_response"
+          # Queue delayed messages for later retrieval
+          # These messages arrive while waiting for turn_end_confirm
+          # and should be processed later
+          warn "DEBUG wait_for_turn_completion: queuing #{message["type"]} message"
           @message_queue << message
           # Continue waiting for turn_end_confirm
         else
@@ -1480,7 +1489,12 @@ module Smalruby3
 
     def make_data(map, except_cells)
       except_cells.each do |cell|
-        ex, ey = cell
+        # Handle both string format "x:y" and array format [x, y]
+        if cell.is_a?(String)
+          ex, ey = parse_position_string(cell)
+        else
+          ex, ey = cell
+        end
         map[ey][ex] = WALL1_CHIP[:index] if map[ey] && map[ey][ex]
       end
 
