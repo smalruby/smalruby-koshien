@@ -409,7 +409,7 @@ module Smalruby3
       if in_test_env?
         log("Turn over")
       elsif in_json_mode?
-        # Process any queued turn_start from previous turn
+        # Check for queued turn_start from previous turn_over
         queued_turn_start = @message_queue.find { |msg| msg["type"] == "turn_start" }
         if queued_turn_start
           @message_queue.delete(queued_turn_start)
@@ -1381,12 +1381,8 @@ module Smalruby3
           handle_game_end(message["data"])
           exit(0)
         when "turn_start"
-          # Queue turn_start for processing at the start of next turn_over
-          # This prevents calling turn_over twice before engine is ready
-          @message_queue << message
-          # Continue waiting for turn_end_confirm
-        when "map_area_response"
-          # Queue map_area_response for later retrieval
+          # Queue turn_start - it will be processed at start of next turn_over
+          # This prevents sending turn_over twice before engine processes first one
           @message_queue << message
           # Continue waiting for turn_end_confirm
         else
