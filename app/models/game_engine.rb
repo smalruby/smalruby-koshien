@@ -339,9 +339,9 @@ class GameEngine
     goal_players = players.select { |p| reached_goal?(p) }
     return {type: :goal_reached, players: goal_players} if goal_players.any?
 
-    # Check if all players finished/timeout
-    active_players = players.select(&:playing?)
-    return {type: :all_finished} if active_players.empty?
+    # Check if both players are timed out (not just one)
+    timed_out_players = players.select { |p| p.status == "timeout" }
+    return {type: :all_timeout} if timed_out_players.size == players.size
 
     # Check if max turns reached
     return {type: :max_turns} if turn.turn_number >= @max_turns
@@ -414,7 +414,27 @@ class GameEngine
   end
 
   def find_start_positions(game_map)
-    # Find valid starting positions by scanning the map for empty spaces
+    # Find player starting positions from players_data
+    if game_map.players_data.present?
+      player_positions = []
+
+      game_map.players_data.each_with_index do |row, y|
+        row.each_with_index do |cell, x|
+          if cell == 1  # Player position marker
+            player_positions << {x: x, y: y}
+          end
+        end
+      end
+
+      # Return the first two player positions found
+      if player_positions.length >= 2
+        return [player_positions[0], player_positions[1]]
+      elsif player_positions.length == 1
+        return [player_positions[0], {x: player_positions[0][:x] + 1, y: player_positions[0][:y]}]
+      end
+    end
+
+    # Fallback: Find valid starting positions by scanning the map for empty spaces
     map_data = game_map.map_data
     valid_positions = []
 

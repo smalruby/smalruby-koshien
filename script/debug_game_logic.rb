@@ -195,6 +195,21 @@ class GameLogicDebugger
         puts "      Position: (#{player.position_x}, #{player.position_y})"
         puts "      Score: #{player.score}"
         puts "      Status: #{player.status}"
+
+        # Show timeout turn if player timed out
+        if player.status == "timeout"
+          # Find the turn where timeout occurred by checking game events
+          timeout_events = GameEvent.joins(:game_turn)
+            .where(game_turns: {game_round_id: round.id})
+            .where(event_type: "AI_TIMEOUT")
+            .where("event_data->>'player_id' = ?", player.id.to_s)
+
+          if timeout_events.any?
+            timeout_turn = timeout_events.first.game_turn.turn_number
+            puts "      Timeout Turn: #{timeout_turn}"
+          end
+        end
+
         puts "      Level: #{player.character_level}"
         puts "      Dynamite: #{player.dynamite_left}/#{GameConstants::N_DYNAMITE}"
         puts "      Bombs: #{player.bomb_left}/#{GameConstants::N_BOMB}"

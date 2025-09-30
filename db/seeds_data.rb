@@ -52,7 +52,7 @@ map_dirs.each do |map_dir|
 
   begin
     map_data = load_csv_map("#{map_dir}/map.dat")
-    load_csv_map("#{map_dir}/players.dat")
+    players_data = load_csv_map("#{map_dir}/players.dat")
     goal_position = find_goal_position(map_data)
 
     preset_maps << {
@@ -60,7 +60,8 @@ map_dirs.each do |map_dir|
       description: "2024年度コンテスト用サンプルマップ#{map_number}",
       map_data: map_data,
       map_height: Array.new(map_data.size) { Array.new(map_data.first.size) { 0 } },
-      goal_position: goal_position
+      goal_position: goal_position,
+      players_data: players_data
     }
   rescue => e
     puts "Warning: Could not load map #{map_number}: #{e.message}"
@@ -73,6 +74,7 @@ preset_maps.each do |map_data|
     map.map_data = map_data[:map_data]
     map.map_height = map_data[:map_height]
     map.goal_position = map_data[:goal_position]
+    map.players_data = map_data[:players_data]
   end
 end
 
