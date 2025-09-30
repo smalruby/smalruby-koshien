@@ -48,15 +48,26 @@ class AiProcessManager
       "RAILS_ENV" => Rails.env
     }
 
+    Rails.logger.info "AI Process starting: script=#{@ai_script_path}, cmd=#{cmd}, env=#{env.inspect}"
+
     @stdin, @stdout, @stderr, @thread = Open3.popen3(env, cmd)
     @process_pid = @thread.pid
     @status = :starting
     @last_output_time = Time.now
 
-    Rails.logger.info "AI Process started: PID=#{@process_pid}, script=#{@ai_script_path}, cmd=#{cmd}"
+    # Start a thread to monitor stderr
+    @stderr_thread = Thread.new do
+      while (line = @stderr.gets)
+        Rails.logger.warn "AI STDERR [PID=#{@process_pid}]: #{line.chomp}"
+      end
+    rescue => e
+      Rails.logger.debug "AI STDERR thread ended: #{e.message}"
+    end
+
+    Rails.logger.info "AI Process started: PID=#{@process_pid}, status=#{@status}"
     true
   rescue => e
-    Rails.logger.error "Failed to start AI process: #{e.message}"
+    Rails.logger.error "Failed to start AI process: #{e.message}\n#{e.backtrace.join("\n")}"
     @status = :failed
     false
   end
@@ -81,20 +92,21 @@ class AiProcessManager
       }
     }
 
+    Rails.logger.info "AI Process [PID=#{@process_pid}] sending initialize message..."
     send_message(init_message)
 
     # Wait for ready response
-    Rails.logger.debug "AI Process waiting for ready message..."
+    Rails.logger.info "AI Process [PID=#{@process_pid}] waiting for ready message..."
     response = wait_for_message
-    Rails.logger.debug "AI Process received response: #{response.inspect}"
+    Rails.logger.info "AI Process [PID=#{@process_pid}] received response: type=#{response&.dig("type")}, player_name=#{response&.dig("data", "player_name")}"
 
     if response && response["type"] == "ready"
       @player_name = response.dig("data", "player_name")
       @status = :ready
-      Rails.logger.info "AI Process initialized: #{@player_name}"
+      Rails.logger.info "AI Process [PID=#{@process_pid}] initialized successfully: player_name=#{@player_name}, status=#{@status}"
       true
     else
-      Rails.logger.error "AI Process failed to respond with ready message, got: #{response.inspect}"
+      Rails.logger.error "AI Process [PID=#{@process_pid}] failed to respond with ready message, got: #{response.inspect}"
       @status = :failed
       false
     end
@@ -118,9 +130,10 @@ class AiProcessManager
       }
     }
 
-    Rails.logger.debug "DEBUG AiProcessManager start_turn: sending message with current_player=#{current_player.inspect}"
+    Rails.logger.info "AI Process [PID=#{@process_pid}] sending turn_start: turn_number=#{turn_number}, player_position=#{current_player[:position]}"
     send_message(turn_message)
     @status = :turn_active
+    Rails.logger.info "AI Process [PID=#{@process_pid}] status changed to :turn_active"
     true
   end
 
@@ -128,27 +141,32 @@ class AiProcessManager
   def wait_for_turn_completion
     raise "No active turn" unless @status == :turn_active
 
+    Rails.logger.info "AI Process [PID=#{@process_pid}] waiting for turn completion..."
+    message_count = 0
+
     while @status == :turn_active
       message = wait_for_message
+      message_count += 1
+
+      Rails.logger.info "AI Process [PID=#{@process_pid}] received message ##{message_count}: type=#{message&.dig("type")}"
 
       case message&.dig("type")
       when "turn_over"
         actions = message.dig("data", "actions") || []
         @status = :turn_completed
+        Rails.logger.info "AI Process [PID=#{@process_pid}] turn completed: actions=#{actions.length}, status=#{@status}"
         return {success: true, actions: actions}
       when "debug"
-        Rails.logger.debug "AI Debug: #{message.dig("data", "message")}"
+        Rails.logger.debug "AI Debug [PID=#{@process_pid}]: #{message.dig("data", "message")}"
         # Continue waiting for turn_over
       when "map_area_request"
         # Handle map area request from AI
-        Rails.logger.debug "DEBUG: Received map_area_request: #{message.inspect}"
         x = message.dig("data", "x")
         y = message.dig("data", "y")
         area_size = message.dig("data", "area_size") || 5
-        Rails.logger.debug "DEBUG: Processing map area request for x=#{x}, y=#{y}, area_size=#{area_size}"
+        Rails.logger.info "AI Process [PID=#{@process_pid}] map_area_request: x=#{x}, y=#{y}, area_size=#{area_size}"
 
         map_area_data = get_map_area_data(x, y, area_size)
-        Rails.logger.debug "DEBUG: Generated map area data: #{map_area_data.inspect}"
 
         # Send response back to AI
         response = {
@@ -156,23 +174,24 @@ class AiProcessManager
           timestamp: Time.now.utc.iso8601,
           data: map_area_data
         }
-        Rails.logger.debug "DEBUG: Sending map_area_response: #{response.inspect}"
+        Rails.logger.info "AI Process [PID=#{@process_pid}] sending map_area_response"
         send_message(response)
-        Rails.logger.debug "DEBUG: map_area_response sent, continuing to wait for turn_over"
         # Continue waiting for turn_over
       when "error"
-        Rails.logger.error "AI Error: #{message.dig("data", "message")}"
+        Rails.logger.error "AI Error [PID=#{@process_pid}]: #{message.dig("data", "message")}"
         # Continue waiting for turn_over
       when nil
         # Timeout or process ended
         @status = :timeout
+        Rails.logger.error "AI Process [PID=#{@process_pid}] timeout or ended: status=#{@status}, alive=#{alive?}"
         return {success: false, reason: :timeout}
       else
-        Rails.logger.warn "Unexpected message type: #{message["type"]}"
+        Rails.logger.warn "AI Process [PID=#{@process_pid}] unexpected message type: #{message["type"]}"
         # Continue waiting
       end
     end
 
+    Rails.logger.warn "AI Process [PID=#{@process_pid}] exited wait loop with status: #{@status}"
     {success: false, reason: :unknown}
   end
 
@@ -190,8 +209,10 @@ class AiProcessManager
       }
     }
 
+    Rails.logger.info "AI Process [PID=#{@process_pid}] sending turn_end_confirm: turn=#{@turn_count}, actions=#{actions_processed}, next_turn=#{@turn_count < MAX_TURN}"
     send_message(confirm_message)
     @status = (@turn_count >= MAX_TURN) ? :game_completed : :ready
+    Rails.logger.info "AI Process [PID=#{@process_pid}] status changed to: #{@status}"
     true
   end
 

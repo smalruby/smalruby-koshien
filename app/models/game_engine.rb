@@ -11,6 +11,7 @@ class GameEngine
     @max_rounds = options[:max_rounds] || N_ROUNDS
     @max_turns = options[:max_turns] || MAX_TURN
     @angry_turn = options[:angry_turn]  # nil when not specified, uses Enemy::ANGRY_TURN default
+    @ai_managers = {}  # Store AI process managers per player for round lifecycle
   end
 
   def execute_battle
@@ -55,6 +56,9 @@ class GameEngine
     @current_round = initialize_round(round_number)
 
     begin
+      # Start AI processes for this round
+      start_ai_processes
+
       # Execute turns until round is finished
       (1..@max_turns).each do |turn_number|
         Rails.logger.debug "Executing turn #{turn_number} for round #{round_number}"
@@ -76,6 +80,7 @@ class GameEngine
       }
     rescue => e
       Rails.logger.error "Round #{round_number} error: #{e.message}"
+      Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
       @current_round.update!(status: :finished)
 
       {
@@ -83,6 +88,9 @@ class GameEngine
         round_number: round_number,
         error: e.message
       }
+    ensure
+      # Always stop AI processes at end of round
+      stop_ai_processes
     end
   end
 
@@ -191,34 +199,30 @@ class GameEngine
   end
 
   # Process-based AI execution model using AiProcessManager
+  # Uses pre-initialized AI processes from @ai_managers
   def execute_ais_with_process_manager(players, turn)
     ai_results = []
 
     players.each_with_index do |player, player_index|
-      Rails.logger.debug "Starting AI process execution for player #{player.id} (#{player_index})"
+      Rails.logger.debug "Executing turn for player #{player.id} (#{player_index})"
 
       begin
-        # Get AI script path from player_ai
-        ai_script_path = get_ai_script_path(player)
+        # Get the AI manager for this player (already started in start_ai_processes)
+        ai_manager = @ai_managers[player.id]
 
-        # Create AI process manager
-        ai_manager = AiProcessManager.new(
-          ai_script_path: ai_script_path,
-          game_id: @current_round.game.id.to_s,
-          round_number: @current_round.round_number,
-          player_index: player_index,
-          player_ai_id: player.player_ai.id.to_s
-        )
-
-        # Start AI process
-        unless ai_manager.start
-          raise "Failed to start AI process for player #{player.id}"
+        unless ai_manager
+          raise "No AI manager found for player #{player.id}. Process may have failed to start."
         end
 
-        # Initialize game with current state
-        game_state = build_game_state_for_process(player)
-        unless ai_manager.initialize_game(**game_state)
-          raise "Failed to initialize AI game for player #{player.id}"
+        # Skip if player already timed out
+        if player.status == "timeout"
+          Rails.logger.warn "Player #{player.id} already marked as timeout, skipping turn"
+          ai_results << {
+            player_id: player.id,
+            success: false,
+            error: "Player already timed out"
+          }
+          next
         end
 
         # Start turn
@@ -255,16 +259,10 @@ class GameEngine
           }
         end
 
-        # Stop AI process
-        ai_manager.stop
-
-        Rails.logger.debug "AI process execution completed for player #{player.id}"
+        Rails.logger.debug "Turn execution completed for player #{player.id}"
       rescue => e
-        Rails.logger.error "AI process execution failed for player #{player.id}: #{e.class} - #{e.message}"
+        Rails.logger.error "Turn execution failed for player #{player.id}: #{e.class} - #{e.message}"
         Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
-
-        # Ensure AI process is stopped even on error
-        ai_manager&.stop
 
         # Mark player as timeout
         player.update!(status: :timeout)
@@ -568,5 +566,67 @@ class GameEngine
     end
 
     @temp_script_paths.clear
+  end
+
+  def start_ai_processes
+    Rails.logger.info "Starting AI processes for round #{@current_round.round_number}"
+
+    players = @current_round.players.includes(:player_ai).order(:id)
+
+    players.each_with_index do |player, player_index|
+      Rails.logger.info "Starting AI process for player #{player.id} (#{player.player_ai.name})"
+
+      begin
+        # Get AI script path
+        ai_script_path = get_ai_script_path(player)
+
+        # Create AI process manager
+        ai_manager = AiProcessManager.new(
+          ai_script_path: ai_script_path,
+          game_id: @current_round.game.id.to_s,
+          round_number: @current_round.round_number,
+          player_index: player_index,
+          player_ai_id: player.player_ai.id.to_s
+        )
+
+        # Start AI process
+        unless ai_manager.start
+          raise "Failed to start AI process for player #{player.id}"
+        end
+
+        # Initialize game with current state
+        game_state = build_game_state_for_process(player)
+        unless ai_manager.initialize_game(**game_state)
+          raise "Failed to initialize AI game for player #{player.id}"
+        end
+
+        # Store AI manager for this player
+        @ai_managers[player.id] = ai_manager
+
+        Rails.logger.info "AI process initialized for player #{player.id}, PID=#{ai_manager.process_pid}"
+      rescue => e
+        Rails.logger.error "Failed to start AI process for player #{player.id}: #{e.message}"
+        Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
+
+        # Mark player as timeout
+        player.update!(status: :timeout)
+
+        # Clean up partial AI manager if it exists
+        ai_manager&.stop
+      end
+    end
+  end
+
+  def stop_ai_processes
+    Rails.logger.info "Stopping AI processes for round #{@current_round.round_number}"
+
+    @ai_managers.each do |player_id, ai_manager|
+      Rails.logger.info "Stopping AI process for player #{player_id}, PID=#{ai_manager.process_pid}"
+      ai_manager.stop
+    rescue => e
+      Rails.logger.warn "Error stopping AI process for player #{player_id}: #{e.message}"
+    end
+
+    @ai_managers.clear
   end
 end

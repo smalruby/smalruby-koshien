@@ -210,6 +210,29 @@ class GameLogicDebugger
         puts "      All finished: #{turns.all?(&:turn_finished?)}"
       end
 
+      # Detailed turn-by-turn analysis in verbose mode
+      if @options[:verbose] && turns.any?
+        puts "\n   📍 Turn-by-Turn Movement Analysis:"
+        turns.limit(10).each do |turn|
+          turn_players = turn.players.includes(:player_ai)
+          turn_players.each do |player|
+            ai_name = player.player_ai.name.split(" - ").last
+            puts "      Turn #{turn.turn_number} - #{ai_name}: (#{player.position_x}, #{player.position_y})"
+          end
+        end
+        if turns.count > 10
+          puts "      ... (#{turns.count - 10} more turns) ..."
+          last_turns = turns.last(5)
+          last_turns.each do |turn|
+            turn_players = turn.players.includes(:player_ai)
+            turn_players.each do |player|
+              ai_name = player.player_ai.name.split(" - ").last
+              puts "      Turn #{turn.turn_number} - #{ai_name}: (#{player.position_x}, #{player.position_y})"
+            end
+          end
+        end
+      end
+
       # Event analysis
       events = GameEvent.joins(:game_turn).where(game_turns: {game_round_id: round.id})
       event_counts = events.group(:event_type).count

@@ -1107,6 +1107,7 @@ module Smalruby3
 
     def setup_json_communication
       @initialized = true
+      @message_queue = []  # Queue for storing unexpected messages
 
       # Debug output
       warn "DEBUG setup_json_communication: instance=#{object_id}, @player_name=#{@player_name.inspect}"
@@ -1175,6 +1176,16 @@ module Smalruby3
     def request_map_area(x, y)
       warn "DEBUG: request_map_area starting for x=#{x}, y=#{y}"
 
+      # Check if there's a queued map_area_response first
+      warn "DEBUG: checking message queue (size=#{@message_queue.length})"
+      queued_response = @message_queue.find { |msg| msg["type"] == "map_area_response" }
+      if queued_response
+        warn "DEBUG: found queued map_area_response, removing from queue"
+        @message_queue.delete(queued_response)
+        warn "DEBUG: returning queued response data"
+        return queued_response["data"]
+      end
+
       # Send map area request message
       request_message = {
         type: "map_area_request",
@@ -1198,6 +1209,8 @@ module Smalruby3
         response["data"]
       else
         warn "ERROR: Failed to get map area response: #{response.inspect}"
+        # If not a map_area_response, queue it for later processing
+        @message_queue << response if response
         nil
       end
     end
@@ -1373,6 +1386,11 @@ module Smalruby3
           # New turn started, update state and return
           handle_turn_start(message["data"])
           return true
+        when "map_area_response"
+          # Queue the delayed map_area_response for later retrieval
+          warn "DEBUG wait_for_turn_completion: queuing map_area_response message"
+          @message_queue << message
+          # Continue waiting for turn_end_confirm
         else
           warn "DEBUG wait_for_turn_completion: unexpected message type: #{message["type"]}"
           send_error_message("Unexpected message type during turn completion: #{message["type"]}")

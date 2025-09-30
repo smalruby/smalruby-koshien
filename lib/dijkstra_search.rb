@@ -37,8 +37,9 @@ module DijkstraSearch
     def route(sid, gid)
       dijkstra(sid)
       base = @nodes.find { |node| node.id == gid }
+      return [] unless base  # Destination node not found in graph
       @res = [base]
-      while (base = @nodes.find { |node| node.id == base.from })
+      while base.from && (base = @nodes.find { |node| node.id == base.from })
         @res << base
       end
       @res
@@ -48,8 +49,16 @@ module DijkstraSearch
     # sid : 始点のID
     # gid : 終点のID
     def get_route(sid, gid)
-      route(sid, gid)
-      @res.reverse.map { |node|
+      route_nodes = route(sid, gid)
+
+      # If route is empty (destination not found) or destination is unreachable
+      if route_nodes.empty? || (route_nodes.length == 1 && route_nodes.first.from.nil?)
+        # Return only starting position
+        sid =~ /\Am(\d+)_(\d+)\z/
+        return [[$1.to_i, $2.to_i]]
+      end
+
+      route_nodes.reverse.map { |node|
         node.id =~ /\Am(\d+)_(\d+)\z/
         [$1.to_i, $2.to_i]
       }
