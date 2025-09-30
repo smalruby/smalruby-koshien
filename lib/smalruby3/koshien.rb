@@ -41,8 +41,12 @@ module DijkstraSearch
     def route(sid, gid)
       dijkstra(sid)
       base = @nodes.find { |node| node.id == gid }
+
+      # Check if destination is reachable (cost should not be nil)
+      return [] if base.nil? || base.cost.nil?
+
       @res = [base]
-      while (base = @nodes.find { |node| node.id == base.from })
+      while base.from && (base = @nodes.find { |node| node.id == base.from })
         @res << base
       end
       @res
@@ -52,8 +56,10 @@ module DijkstraSearch
     # sid : 始点のID
     # gid : 終点のID
     def get_route(sid, gid)
-      route(sid, gid)
-      @res.reverse.map { |node|
+      result = route(sid, gid)
+      return [] if result.empty?
+
+      result.reverse.map { |node|
         node.id =~ /\Am(\d+)_(\d+)\z/
         [$1.to_i, $2.to_i]
       }
@@ -888,7 +894,10 @@ module Smalruby3
         "14:14"
       elsif in_json_mode?
         pos = goal_position
-        "#{pos[:x]}:#{pos[:y]}"
+        # Handle both string and symbol keys
+        x = pos["x"] || pos[:x]
+        y = pos["y"] || pos[:y]
+        "#{x}:#{y}"
       else
         "14:14"
       end
@@ -911,7 +920,8 @@ module Smalruby3
         # Minimal stub for testing
         14
       elsif in_json_mode?
-        goal_position[:x]
+        pos = goal_position
+        pos["x"] || pos[:x]
       else
         14
       end
@@ -934,7 +944,8 @@ module Smalruby3
         # Minimal stub for testing
         14
       elsif in_json_mode?
-        goal_position[:y]
+        pos = goal_position
+        pos["y"] || pos[:y]
       else
         14
       end
@@ -1433,10 +1444,17 @@ module Smalruby3
     end
 
     def build_map_data_from_game_state
-      # For now, create a basic 20x20 map with open spaces
-      # In production, this would extract real map data from @game_state
-      # or from the visible_map information
-      Array.new(20) { Array.new(20, BLANK_CHIP[:index]) }
+      # Extract real map data from visible_map if available
+      if @current_turn_data && @current_turn_data["visible_map"] && @current_turn_data["visible_map"]["map_data"]
+        # Use the actual map data from the game
+        @current_turn_data["visible_map"]["map_data"]
+      elsif @game_state && @game_state["game_map"] && @game_state["game_map"]["map_data"]
+        # Fallback to initial game map data
+        @game_state["game_map"]["map_data"]
+      else
+        # Last resort: create a basic 20x20 map with open spaces
+        Array.new(20) { Array.new(20, BLANK_CHIP[:index]) }
+      end
     end
 
     def build_map_string_from_visible_map
