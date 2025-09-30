@@ -121,6 +121,12 @@ class GameEngine
     [game.first_player_ai, game.second_player_ai].each_with_index do |player_ai, index|
       position = start_positions[index]
 
+      # Initialize player's personal map (all -1 = unexplored)
+      map_height = game_map.map_data.size
+      map_width = game_map.map_data.first.size
+      my_map = Array.new(map_height) { Array.new(map_width, -1) }
+      map_fov = Array.new(map_height) { Array.new(map_width, -1) }
+
       round.players.create!(
         player_ai: player_ai,
         position_x: position[:x],
@@ -133,7 +139,9 @@ class GameEngine
         bomb_left: N_BOMB,
         walk_bonus_counter: 0,
         acquired_positive_items: [0, 0, 0, 0, 0, 0],
-        status: :playing
+        status: :playing,
+        my_map: my_map,
+        map_fov: map_fov
       )
     end
   end
@@ -528,13 +536,12 @@ class GameEngine
   end
 
   def build_visible_map(player)
-    # Build visible map based on player's exploration
-    # For now, return the full map - TODO: implement exploration-based visibility
+    # Build visible map based on player's personal exploration map
     map_size = game.game_map.size
     {
       width: map_size[:width],
       height: map_size[:height],
-      map_data: game.game_map.map_data
+      map_data: player.my_map
     }
   end
 

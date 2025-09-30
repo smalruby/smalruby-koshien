@@ -12,6 +12,9 @@ class Player < ApplicationRecord
   validates :character_level, presence: true, numericality: {greater_than_or_equal_to: 1}
   validates :walk_bonus_counter, presence: true, numericality: {greater_than_or_equal_to: 0}
 
+  serialize :my_map, coder: JSON
+  serialize :map_fov, coder: JSON
+
   enum :status, {
     playing: 0,
     completed: 1,
@@ -120,6 +123,28 @@ class Player < ApplicationRecord
 
   def encount_enemy?(enemy_info)
     [position_x, position_y] == [enemy_info[:x].to_i, enemy_info[:y].to_i]
+  end
+
+  def update_my_map(rng_x, rng_y, map_snapshot)
+    # Update player's personal map with snapshot data for the specified range
+    current_my_map = my_map.dup
+    current_map_fov = map_fov.dup
+
+    rng_y.each_with_index do |my_map_y, y_pos|
+      rng_x.each_with_index do |my_map_x, x_pos|
+        current_my_map[my_map_y][my_map_x] = map_snapshot[y_pos][x_pos]
+      end
+    end
+
+    # Mark explored cells with LATEST_SEARCH_LEVEL in field of view
+    rng_y.each do |my_map_y|
+      rng_x.each do |my_map_x|
+        current_map_fov[my_map_y][my_map_x] = LATEST_SEARCH_LEVEL
+      end
+    end
+
+    self.my_map = current_my_map
+    self.map_fov = current_map_fov
   end
 
   def api_info

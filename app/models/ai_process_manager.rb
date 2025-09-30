@@ -379,44 +379,79 @@ class AiProcessManager
   def get_map_area_data(x, y, area_size = 5)
     Rails.logger.debug "DEBUG: get_map_area_data called with x=#{x}, y=#{y}, area_size=#{area_size}"
 
-    # This is a simplified implementation that returns mock data
-    # In a full implementation, this would access the actual game state
-    # and return real map data based on the current game round
+    # Find game_round and player using instance variables
+    game = Game.find(@game_id)
+    game_round = game.game_rounds.find_by(round_number: @round_number)
+    return {} unless game_round
 
-    # For now, return mock data structure matching the expected format
+    player = game_round.players.find_by(player_ai_id: @player_ai_id)
+    return {} unless player
+
+    game_map = game_round.game.game_map
+    map_data = game_map.map_data
+    items_data = game_map.items_data || Array.new(map_data.size) { Array.new(map_data.first.size, 0) }
+
+    map_width = map_data.first.size
+    map_height = map_data.size
     half_size = area_size / 2
-    Rails.logger.debug "DEBUG: half_size=#{half_size}"
 
-    # Calculate the area bounds (5x5 around the target position)
-    start_x = [0, x - half_size].max
-    end_x = [16, x + half_size].min  # Assuming 17x17 map
-    start_y = [0, y - half_size].max
-    end_y = [16, y + half_size].min
-    Rails.logger.debug "DEBUG: bounds: start_x=#{start_x}, end_x=#{end_x}, start_y=#{start_y}, end_y=#{end_y}"
-
-    # Mock map data - in real implementation this would come from GameMap
-    map_area = []
-    (start_y..end_y).each do |map_y|
-      row = []
-      (start_x..end_x).each do |map_x|
-        # 0 = empty space, 2 = wall - mock data for now
-        cell_value = (map_x == 0 || map_x == 16 || map_y == 0 || map_y == 16) ? 2 : 0
-        row << cell_value
-      end
-      map_area << row
+    # Calculate range with boundary checks
+    rng_x = if x < half_size
+      (0..(x + half_size))
+    elsif x > map_width - half_size - 1
+      ((x - half_size)..(map_width - 1))
+    else
+      ((x - half_size)..(x + half_size))
     end
-    Rails.logger.debug "DEBUG: generated map_area: #{map_area.inspect}"
+
+    rng_y = if y < half_size
+      (0..(y + half_size))
+    elsif y > map_height - half_size - 1
+      ((y - half_size)..(map_height - 1))
+    else
+      ((y - half_size)..(y + half_size))
+    end
+
+    # Create snapshot: start with map data
+    map_snapshot = []
+    map_data[rng_y].each do |row|
+      map_snapshot << row[rng_x].dup
+    end
+
+    # Overlay items from items_data (ITEM_MARKS mapping)
+    items_data[rng_y].each_with_index do |row, y_pos|
+      row[rng_x].each_with_index do |item_idx, x_pos|
+        if item_idx.to_i != 0  # Not ITEM_BLANK_INDEX
+          # Map item indices to marks (4-9 for items 1-6)
+          map_snapshot[y_pos][x_pos] = item_idx + 3 if item_idx.between?(1, 6)
+        end
+      end
+    end
+
+    # Update player's personal map with this snapshot
+    player.update_my_map(rng_x, rng_y, map_snapshot)
+    player.save!
+
+    # Check for other player in range
+    other_players = game_round.players.where.not(id: player.id)
+    other_player_pos = nil
+    other_players.each do |other|
+      if rng_x.include?(other.position_x) && rng_y.include?(other.position_y)
+        other_player_pos = [other.position_x, other.position_y]
+        break
+      end
+    end
 
     result = {
-      map: map_area,
+      map: map_snapshot,
       center_x: x,
       center_y: y,
-      start_x: start_x,
-      start_y: start_y,
-      end_x: end_x,
-      end_y: end_y,
-      other_player: nil,  # Would be calculated based on other player position
-      enemies: []  # Would be calculated based on enemy positions
+      start_x: rng_x.first,
+      start_y: rng_y.first,
+      end_x: rng_x.last,
+      end_y: rng_y.last,
+      other_player: other_player_pos,
+      enemies: []  # TODO: implement enemy detection in range
     }
     Rails.logger.debug "DEBUG: returning result: #{result.inspect}"
     result

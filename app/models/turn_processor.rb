@@ -64,7 +64,7 @@ class TurnProcessor
         create_game_event(player, "WAIT")
       when "explore"
         # Player is exploring map area, create exploration event
-        create_game_event(player, "EXPLORE", {target: action[:target]})
+        create_game_event(player, "EXPLORE", {target: action[:target_position]})
       else
         Rails.logger.warn "Unknown action type: #{action[:type]}"
       end
@@ -93,6 +93,7 @@ class TurnProcessor
         normalized[:target_y] = action["target_y"] || action[:target_y]
         normalized[:item] = action["item"] || action[:item]
         normalized[:target] = action["target"] || action[:target]
+        normalized[:target_position] = action["target_position"] || action[:target_position]
         normalized[:position] = action["position"] || action[:position]
         normalized[:area_size] = action["area_size"] || action[:area_size]
 
