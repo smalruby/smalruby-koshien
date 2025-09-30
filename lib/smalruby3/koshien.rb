@@ -407,25 +407,18 @@ module Smalruby3
     # - (実行するとターンが終了するので) 1ターンに1回のみ
     def turn_over
       if in_test_env?
-        # Minimal stub for testing
         log("Turn over")
       elsif in_json_mode?
-        # Check if there's a queued turn_start message from previous turn
+        # Process any queued turn_start from previous turn
         queued_turn_start = @message_queue.find { |msg| msg["type"] == "turn_start" }
         if queued_turn_start
-          warn "DEBUG turn_over: found queued turn_start, processing it"
           @message_queue.delete(queued_turn_start)
           handle_turn_start(queued_turn_start["data"])
         end
 
-        warn "DEBUG turn_over: sending turn_over message"
         send_turn_over
-        warn "DEBUG turn_over: waiting for turn completion"
-        # Wait for turn processing to complete before returning control to script
-        result = wait_for_turn_completion
-        warn "DEBUG turn_over: wait_for_turn_completion returned: #{result}"
+        wait_for_turn_completion
       else
-        # Original stub behavior
         log("Turn over")
       end
     end
@@ -1311,24 +1304,16 @@ module Smalruby3
       @current_turn_data = data
       @current_turn = data["turn_number"]
 
-      # Debug: log turn data structure
-      warn "DEBUG handle_turn_start: turn_data=#{data.inspect}"
+      # Update local position tracking when we receive turn data
       if data["current_player"]
-        warn "DEBUG current_player: #{data["current_player"].inspect}"
-
-        # Update local position tracking when we receive turn data
         current_player = data["current_player"]
         if current_player && current_player["x"] && current_player["y"]
           @current_position = {x: current_player["x"], y: current_player["y"]}
-          warn "DEBUG handle_turn_start: updated @current_position to #{@current_position.inspect}"
         end
       end
 
       # Clear previous actions
       clear_actions
-
-      # Allow the AI script to execute (this will be caught by koshien.turn_over)
-      yield if block_given?
     end
 
     def handle_turn_end_confirm(data)
@@ -1384,35 +1369,27 @@ module Smalruby3
     end
 
     def wait_for_turn_completion
-      warn "DEBUG wait_for_turn_completion: entering loop"
       loop do
-        warn "DEBUG wait_for_turn_completion: reading message"
         message = read_message
-        warn "DEBUG wait_for_turn_completion: received message: #{message.inspect}"
-
-        unless message
-          warn "DEBUG wait_for_turn_completion: no message received, returning false"
-          return false
-        end
+        return false unless message
 
         case message["type"]
         when "turn_end_confirm"
-          warn "DEBUG wait_for_turn_completion: handling turn_end_confirm"
           handle_turn_end_confirm(message["data"])
-          return true # Turn completed, continue to next turn
+          return true
         when "game_end"
-          warn "DEBUG wait_for_turn_completion: handling game_end"
           handle_game_end(message["data"])
-          exit(0) # Game finished, exit script
-        when "turn_start", "map_area_response"
-          # Queue delayed messages for later retrieval
-          # These messages arrive while waiting for turn_end_confirm
-          # and should be processed later
-          warn "DEBUG wait_for_turn_completion: queuing #{message["type"]} message"
+          exit(0)
+        when "turn_start"
+          # Queue turn_start for processing at the start of next turn_over
+          # This prevents calling turn_over twice before engine is ready
+          @message_queue << message
+          # Continue waiting for turn_end_confirm
+        when "map_area_response"
+          # Queue map_area_response for later retrieval
           @message_queue << message
           # Continue waiting for turn_end_confirm
         else
-          warn "DEBUG wait_for_turn_completion: unexpected message type: #{message["type"]}"
           send_error_message("Unexpected message type during turn completion: #{message["type"]}")
           return false
         end
