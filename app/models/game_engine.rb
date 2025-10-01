@@ -54,6 +54,7 @@ class GameEngine
 
   def execute_round(round_number)
     @current_round = initialize_round(round_number)
+    @last_turn_number = 0
 
     begin
       # Start AI processes for this round
@@ -64,6 +65,7 @@ class GameEngine
         Rails.logger.debug "Executing turn #{turn_number} for round #{round_number}"
 
         turn_result = execute_turn(turn_number)
+        @last_turn_number = turn_number
 
         # Check if round should end early
         break if round_finished?(turn_result)
@@ -117,6 +119,9 @@ class GameEngine
   def initialize_players(round)
     game_map = game.game_map
     start_positions = find_start_positions(game_map)
+
+    # 2ラウンド目は開始位置を入れ替える (先攻と後攻を入れ替え)
+    start_positions.reverse! if round.round_number == 2
 
     [game.first_player_ai, game.second_player_ai].each_with_index do |player_ai, index|
       position = start_positions[index]
@@ -593,8 +598,11 @@ class GameEngine
   def current_goal_bonus
     # Goal bonus decreases by 10 points for every 10 turns
     # Formula from original: MAX_GOAL_BONUS - ((turn - 1) / 10) * 10
-    current_turn = @current_round.game_turns.maximum(:turn_number) || 1
-    MAX_GOAL_BONUS - ((current_turn - 1) / 10) * 10
+    # Use the last executed turn number (stored in @last_turn_number)
+    current_turn = @last_turn_number || 1
+    bonus = MAX_GOAL_BONUS - ((current_turn - 1) / 10) * 10
+    Rails.logger.info "Calculating goal bonus: turn=#{current_turn}, bonus=#{bonus}"
+    bonus
   end
 
   def generate_item_locations
