@@ -755,27 +755,17 @@ module Smalruby3
           map_data = visible_map["map_data"]
 
           if map_data&.is_a?(Array)
-            # Map data is a 2D array with numeric item codes
-            # Convert numeric codes to character codes for comparison
-            # Positive items: 1-5 => "a"-"e"
-            # Negative items: 6-9 => "A"-"D"
-            code_to_char = {
-              1 => "a", 2 => "b", 3 => "c", 4 => "d", 5 => "e",
-              6 => "A", 7 => "B", 8 => "C", 9 => "D"
-            }
-
+            # Map data is a 2D array with string item marks
+            # Positive items: "a"-"e"
+            # Negative items: "A"-"D"
             (min_y..max_y).each do |y|
               next unless map_data[y]
               (min_x..max_x).each do |x|
                 cell_value = map_data[y][x]
                 next unless cell_value
 
-                # Convert numeric code to character code
-                cell_char = code_to_char[cell_value]
-                next unless cell_char
-
-                # Check if cell character matches any of the requested objects
-                if objects.include?(cell_char)
+                # Check if cell value is a string mark that matches requested objects
+                if cell_value.is_a?(String) && objects.include?(cell_value)
                   object_positions << [x, y]
                 end
               end

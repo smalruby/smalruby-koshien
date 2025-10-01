@@ -24,16 +24,16 @@ RSpec.describe Smalruby3::Koshien, type: :model do
       let(:map_data) do
         # 17x17 map with negative items at known positions
         Array.new(17) { Array.new(17, 0) }.tap do |map|
-          # Add negative items:
-          map[2][3] = 6   # A (poison) at (3, 2)
-          map[2][8] = 7   # B (snake) at (8, 2)
-          map[2][13] = 6  # A (poison) at (13, 2)
-          map[4][6] = 8   # C (trap) at (6, 4)
-          map[5][11] = 8  # C (trap) at (11, 5)
-          map[10][12] = 8 # C (trap) at (12, 10)
-          map[13][8] = 9  # D (bomb) at (8, 13)
-          map[14][5] = 7  # B (snake) at (5, 14)
-          map[14][11] = 7 # B (snake) at (11, 14)
+          # Add negative items (string marks):
+          map[2][3] = "A"   # A (poison) at (3, 2)
+          map[2][8] = "B"   # B (snake) at (8, 2)
+          map[2][13] = "A"  # A (poison) at (13, 2)
+          map[4][6] = "C"   # C (trap) at (6, 4)
+          map[5][11] = "C"  # C (trap) at (11, 5)
+          map[10][12] = "C" # C (trap) at (12, 10)
+          map[13][8] = "D"  # D (bomb) at (8, 13)
+          map[14][5] = "B"  # B (snake) at (5, 14)
+          map[14][11] = "B" # B (snake) at (11, 14)
         end
       end
 
@@ -99,11 +99,11 @@ RSpec.describe Smalruby3::Koshien, type: :model do
     context "with positive items (abcde) on map" do
       let(:map_data) do
         Array.new(17) { Array.new(17, 0) }.tap do |map|
-          map[1][15] = 1  # a (tea) at (15, 1)
-          map[5][5] = 2   # b (sweets) at (5, 5)
-          map[8][12] = 2  # b (sweets) at (12, 8)
-          map[6][15] = 3  # c (COIN) at (15, 6)
-          map[10][1] = 3  # c (COIN) at (1, 10)
+          map[1][15] = "a"  # a (tea) at (15, 1)
+          map[5][5] = "b"   # b (sweets) at (5, 5)
+          map[8][12] = "b"  # b (sweets) at (12, 8)
+          map[6][15] = "c"  # c (COIN) at (15, 6)
+          map[10][1] = "c"  # c (COIN) at (1, 10)
         end
       end
 
@@ -132,8 +132,8 @@ RSpec.describe Smalruby3::Koshien, type: :model do
       end
 
       it "handles search at map boundary (top-left corner)" do
-        map_data[0][0] = 6  # A at (0, 0)
-        map_data[1][1] = 7  # B at (1, 1)
+        map_data[0][0] = "A"  # A at (0, 0)
+        map_data[1][1] = "B"  # B at (1, 1)
 
         koshien.locate_objects(result: result_list, cent: "0:0", sq_size: 5, objects: "ABCD")
 
@@ -143,8 +143,8 @@ RSpec.describe Smalruby3::Koshien, type: :model do
       end
 
       it "handles search at map boundary (bottom-right corner)" do
-        map_data[16][16] = 6  # A at (16, 16)
-        map_data[15][15] = 7  # B at (15, 15)
+        map_data[16][16] = "A"  # A at (16, 16)
+        map_data[15][15] = "B"  # B at (15, 15)
 
         koshien.locate_objects(result: result_list, cent: "16:16", sq_size: 5, objects: "ABCD")
 
@@ -154,7 +154,7 @@ RSpec.describe Smalruby3::Koshien, type: :model do
       end
 
       it "handles very small search area (size 1)" do
-        map_data[8][8] = 6  # A at (8, 8)
+        map_data[8][8] = "A"  # A at (8, 8)
 
         koshien.locate_objects(result: result_list, cent: "8:8", sq_size: 1, objects: "ABCD")
 
@@ -164,8 +164,8 @@ RSpec.describe Smalruby3::Koshien, type: :model do
       end
 
       it "handles large search area covering entire map" do
-        map_data[0][0] = 6
-        map_data[16][16] = 7
+        map_data[0][0] = "A"
+        map_data[16][16] = "B"
 
         koshien.locate_objects(result: result_list, cent: "8:8", sq_size: 99, objects: "ABCD")
 
@@ -177,10 +177,10 @@ RSpec.describe Smalruby3::Koshien, type: :model do
       let(:map_data) do
         Array.new(17) { Array.new(17, 0) }.tap do |map|
           # Add items in random order to test sorting
-          map[5][10] = 6  # (10, 5)
-          map[5][2] = 7   # (2, 5)
-          map[3][8] = 8   # (8, 3)
-          map[3][4] = 6   # (4, 3)
+          map[5][10] = "A"  # (10, 5)
+          map[5][2] = "B"   # (2, 5)
+          map[3][8] = "C"   # (8, 3)
+          map[3][4] = "A"   # (4, 3)
         end
       end
 
