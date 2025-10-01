@@ -55,11 +55,11 @@ class Player < ApplicationRecord
     true
   end
 
-  def apply_goal_bonus
+  def apply_goal_bonus(bonus = 100)
     return false if has_goal_bonus?
 
     self.has_goal_bonus = true
-    self.score += 100 # ゴールボーナス
+    self.score += bonus # ゴールボーナス (turn-based)
     true
   end
 

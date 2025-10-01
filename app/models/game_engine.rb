@@ -347,7 +347,17 @@ class GameEngine
 
     # Check if any player reached goal
     goal_players = players.select { |p| reached_goal?(p) }
-    return {type: :goal_reached, players: goal_players} if goal_players.any?
+    if goal_players.any?
+      # Stop AI processes for players who reached goal
+      goal_players.each do |player|
+        ai_manager = @ai_managers[player.id]
+        if ai_manager
+          Rails.logger.info "Player #{player.id} reached goal, stopping AI process"
+          ai_manager.stop
+        end
+      end
+      return {type: :goal_reached, players: goal_players}
+    end
 
     # Check if both players are timed out (not just one)
     timed_out_players = players.select { |p| p.status == "timeout" }
@@ -573,15 +583,36 @@ class GameEngine
   def apply_final_bonuses(player)
     # Apply goal bonus if player reached goal
     if reached_goal?(player)
-      player.apply_goal_bonus
+      bonus = current_goal_bonus
+      player.apply_goal_bonus(bonus)
       player.save!
+      Rails.logger.info "Applied goal bonus of #{bonus} to player #{player.player_ai.name} (turn #{@current_round.game_turns.maximum(:turn_number)})"
     end
   end
 
+  def current_goal_bonus
+    # Goal bonus decreases by 10 points for every 10 turns
+    # Formula from original: MAX_GOAL_BONUS - ((turn - 1) / 10) * 10
+    current_turn = @current_round.game_turns.maximum(:turn_number) || 1
+    MAX_GOAL_BONUS - ((current_turn - 1) / 10) * 10
+  end
+
   def generate_item_locations
-    # TODO: Generate random item locations based on ITEM_QUANTITIES
-    # For now, return empty hash
-    {}
+    # Load items from game map's items_data
+    return {} unless game.game_map.items_data.present?
+
+    # Convert 2D array to hash format: {y => {x => item_index}}
+    items_hash = {}
+    game.game_map.items_data.each_with_index do |row, y|
+      row.each_with_index do |item, x|
+        next if item.nil? || item == 0
+
+        items_hash[y.to_s] ||= {}
+        items_hash[y.to_s][x.to_s] = item
+      end
+    end
+
+    items_hash
   end
 
   def cleanup_temp_files
