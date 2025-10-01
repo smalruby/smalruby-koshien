@@ -349,18 +349,18 @@ class GameEngine
   def check_win_conditions(turn)
     players = @current_round.players.reload
 
-    # Check if any player reached goal
+    # Check if BOTH players reached goal
     goal_players = players.select { |p| reached_goal?(p) }
-    if goal_players.any?
-      # Stop AI processes for players who reached goal
+    if goal_players.size == players.size
+      # Both players reached goal - game ends
       goal_players.each do |player|
         ai_manager = @ai_managers[player.id]
         if ai_manager
-          Rails.logger.info "Player #{player.id} reached goal, stopping AI process"
+          Rails.logger.info "Player #{player.id} reached goal"
           ai_manager.stop
         end
       end
-      return {type: :goal_reached, players: goal_players}
+      return {type: :all_goal_reached, players: goal_players}
     end
 
     # Check if both players are timed out (not just one)
@@ -517,6 +517,8 @@ class GameEngine
   def build_game_state_for_process(player)
     # Build game state for AiProcessManager initialization
     map_size = game.game_map.size
+    initial_pos = {x: player.position_x, y: player.position_y}
+
     {
       game_map: {
         width: map_size[:width],
@@ -524,7 +526,7 @@ class GameEngine
         map_data: game.game_map.map_data,
         goal_position: game.game_map.goal_position
       },
-      initial_position: {x: player.position_x, y: player.position_y},
+      initial_position: initial_pos,
       initial_items: {
         dynamite_left: player.dynamite_left,
         bomb_left: player.bomb_left
@@ -540,18 +542,14 @@ class GameEngine
   def build_turn_data(player, turn_number)
     # Build turn data for AiProcessManager turn execution
     api_info = player.api_info
-    Rails.logger.debug "DEBUG build_turn_data: player.api_info = #{api_info.inspect}"
 
-    turn_data = {
+    {
       turn_number: turn_number,
       current_player: api_info,
       other_players: @current_round.players.where.not(id: player.id).map(&:api_info),
       enemies: @current_round.enemies.map(&:api_info),
       visible_map: build_visible_map(player)
     }
-
-    Rails.logger.debug "DEBUG build_turn_data: turn_data = #{turn_data.inspect}"
-    turn_data
   end
 
   def build_visible_map(player)

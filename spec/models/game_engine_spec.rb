@@ -105,13 +105,25 @@ RSpec.describe GameEngine, type: :model do
     end
 
     context "プレイヤーがゴールに到達した場合" do
-      it "ゴール勝利を返す" do
+      it "全プレイヤーがゴールに到達した場合のみゴール勝利を返す" do
+        # 両方のプレイヤーがゴールに到達
         allow(game_engine).to receive(:reached_goal?).with(player1).and_return(true)
+        allow(game_engine).to receive(:reached_goal?).with(player2).and_return(true)
 
         result = game_engine.send(:check_win_conditions, turn)
 
-        expect(result[:type]).to eq(:goal_reached)
-        expect(result[:players]).to include(player1)
+        expect(result[:type]).to eq(:all_goal_reached)
+        expect(result[:players]).to include(player1, player2)
+      end
+
+      it "一方のプレイヤーのみがゴールに到達した場合は続行する" do
+        # player1のみがゴールに到達
+        allow(game_engine).to receive(:reached_goal?).with(player1).and_return(true)
+        allow(game_engine).to receive(:reached_goal?).with(player2).and_return(false)
+
+        result = game_engine.send(:check_win_conditions, turn)
+
+        expect(result[:type]).to eq(:continue)
       end
     end
 
