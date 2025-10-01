@@ -11,6 +11,7 @@ class GameEngine
     @max_rounds = options[:max_rounds] || N_ROUNDS
     @max_turns = options[:max_turns] || MAX_TURN
     @angry_turn = options[:angry_turn]  # nil when not specified, uses Enemy::ANGRY_TURN default
+    @ai_managers = {}  # Store AI process managers per player for round lifecycle
   end
 
   def execute_battle
@@ -53,13 +54,18 @@ class GameEngine
 
   def execute_round(round_number)
     @current_round = initialize_round(round_number)
+    @last_turn_number = 0
 
     begin
+      # Start AI processes for this round
+      start_ai_processes
+
       # Execute turns until round is finished
       (1..@max_turns).each do |turn_number|
         Rails.logger.debug "Executing turn #{turn_number} for round #{round_number}"
 
         turn_result = execute_turn(turn_number)
+        @last_turn_number = turn_number
 
         # Check if round should end early
         break if round_finished?(turn_result)
@@ -76,6 +82,7 @@ class GameEngine
       }
     rescue => e
       Rails.logger.error "Round #{round_number} error: #{e.message}"
+      Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
       @current_round.update!(status: :finished)
 
       {
@@ -83,6 +90,9 @@ class GameEngine
         round_number: round_number,
         error: e.message
       }
+    ensure
+      # Always stop AI processes at end of round
+      stop_ai_processes
     end
   end
 
@@ -110,8 +120,17 @@ class GameEngine
     game_map = game.game_map
     start_positions = find_start_positions(game_map)
 
+    # 2ラウンド目は開始位置を入れ替える (先攻と後攻を入れ替え)
+    start_positions.reverse! if round.round_number == 2
+
     [game.first_player_ai, game.second_player_ai].each_with_index do |player_ai, index|
       position = start_positions[index]
+
+      # Initialize player's personal map (all -1 = unexplored)
+      map_height = game_map.map_data.size
+      map_width = game_map.map_data.first.size
+      my_map = Array.new(map_height) { Array.new(map_width, -1) }
+      map_fov = Array.new(map_height) { Array.new(map_width, -1) }
 
       round.players.create!(
         player_ai: player_ai,
@@ -125,7 +144,9 @@ class GameEngine
         bomb_left: N_BOMB,
         walk_bonus_counter: 0,
         acquired_positive_items: [0, 0, 0, 0, 0, 0],
-        status: :playing
+        status: :playing,
+        my_map: my_map,
+        map_fov: map_fov
       )
     end
   end
@@ -191,38 +212,36 @@ class GameEngine
   end
 
   # Process-based AI execution model using AiProcessManager
+  # Uses pre-initialized AI processes from @ai_managers
   def execute_ais_with_process_manager(players, turn)
     ai_results = []
 
     players.each_with_index do |player, player_index|
-      Rails.logger.debug "Starting AI process execution for player #{player.id} (#{player_index})"
+      Rails.logger.debug "Executing turn for player #{player.id} (#{player_index})"
 
       begin
-        # Get AI script path from player_ai
-        ai_script_path = get_ai_script_path(player)
+        # Get the AI manager for this player (already started in start_ai_processes)
+        ai_manager = @ai_managers[player.id]
 
-        # Create AI process manager
-        ai_manager = AiProcessManager.new(
-          ai_script_path: ai_script_path,
-          game_id: @current_round.game.id.to_s,
-          round_number: @current_round.round_number,
-          player_index: player_index,
-          player_ai_id: player.player_ai.id.to_s
-        )
-
-        # Start AI process
-        unless ai_manager.start
-          raise "Failed to start AI process for player #{player.id}"
+        unless ai_manager
+          raise "No AI manager found for player #{player.id}. Process may have failed to start."
         end
 
-        # Initialize game with current state
-        game_state = build_game_state_for_process(player)
-        unless ai_manager.initialize_game(**game_state)
-          raise "Failed to initialize AI game for player #{player.id}"
+        # Skip if player already timed out
+        if player.status == "timeout"
+          Rails.logger.warn "Player #{player.id} already marked as timeout, skipping turn"
+          ai_results << {
+            player_id: player.id,
+            success: false,
+            error: "Player already timed out"
+          }
+          next
         end
 
         # Start turn
-        turn_data = build_turn_data(player)
+        # Reload player to get latest position/state after previous player's actions
+        player.reload
+        turn_data = build_turn_data(player, turn.turn_number)
         unless ai_manager.start_turn(**turn_data)
           raise "Failed to start AI turn for player #{player.id}"
         end
@@ -255,16 +274,10 @@ class GameEngine
           }
         end
 
-        # Stop AI process
-        ai_manager.stop
-
-        Rails.logger.debug "AI process execution completed for player #{player.id}"
+        Rails.logger.debug "Turn execution completed for player #{player.id}"
       rescue => e
-        Rails.logger.error "AI process execution failed for player #{player.id}: #{e.class} - #{e.message}"
+        Rails.logger.error "Turn execution failed for player #{player.id}: #{e.class} - #{e.message}"
         Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
-
-        # Ensure AI process is stopped even on error
-        ai_manager&.stop
 
         # Mark player as timeout
         player.update!(status: :timeout)
@@ -299,8 +312,7 @@ class GameEngine
 
       Rails.logger.debug "Enemy moved to (#{enemy.position_x}, #{enemy.position_y})"
 
-      # Check for enemy-player collisions and apply score penalties
-      check_enemy_player_collisions(enemy, players, turn)
+      # Note: Enemy-player collision detection is now handled by TurnProcessor#process_enemy_interactions
     end
   end
 
@@ -337,13 +349,23 @@ class GameEngine
   def check_win_conditions(turn)
     players = @current_round.players.reload
 
-    # Check if any player reached goal
+    # Check if BOTH players reached goal
     goal_players = players.select { |p| reached_goal?(p) }
-    return {type: :goal_reached, players: goal_players} if goal_players.any?
+    if goal_players.size == players.size
+      # Both players reached goal - game ends
+      goal_players.each do |player|
+        ai_manager = @ai_managers[player.id]
+        if ai_manager
+          Rails.logger.info "Player #{player.id} reached goal"
+          ai_manager.stop
+        end
+      end
+      return {type: :all_goal_reached, players: goal_players}
+    end
 
-    # Check if all players finished/timeout
-    active_players = players.select(&:playing?)
-    return {type: :all_finished} if active_players.empty?
+    # Check if both players are timed out (not just one)
+    timed_out_players = players.select { |p| p.status == "timeout" }
+    return {type: :all_timeout} if timed_out_players.size == players.size
 
     # Check if max turns reached
     return {type: :max_turns} if turn.turn_number >= @max_turns
@@ -357,21 +379,24 @@ class GameEngine
   end
 
   def finalize_round
-    @current_round.update!(status: :finished)
-
     # Apply final bonuses and calculate scores
     @current_round.players.each do |player|
       player.update_character_level
       apply_final_bonuses(player)
     end
+
+    # Determine and save round winner
+    winner = determine_round_winner
+    @current_round.update!(status: :finished, winner: winner)
   end
 
   def determine_round_winner
-    players = @current_round.players.order(:score).reverse
+    players = @current_round.players.order(:id)
     return :draw if players[0].score == players[1].score
 
-    winner_player = players.first
-    (game.first_player_ai == winner_player.player_ai) ? :player1 : :player2
+    # Determine winner by score - players are ordered by creation (first_player, second_player)
+    winner_player = players.max_by(&:score)
+    (winner_player == players[0]) ? :player1 : :player2
   end
 
   def determine_overall_winner(round_results)
@@ -416,7 +441,27 @@ class GameEngine
   end
 
   def find_start_positions(game_map)
-    # Find valid starting positions by scanning the map for empty spaces
+    # Find player starting positions from players_data
+    if game_map.players_data.present?
+      player_positions = []
+
+      game_map.players_data.each_with_index do |row, y|
+        row.each_with_index do |cell, x|
+          if cell == 1  # Player position marker
+            player_positions << {x: x, y: y}
+          end
+        end
+      end
+
+      # Return the first two player positions found
+      if player_positions.length >= 2
+        return [player_positions[0], player_positions[1]]
+      elsif player_positions.length == 1
+        return [player_positions[0], {x: player_positions[0][:x] + 1, y: player_positions[0][:y]}]
+      end
+    end
+
+    # Fallback: Find valid starting positions by scanning the map for empty spaces
     map_data = game_map.map_data
     valid_positions = []
 
@@ -472,6 +517,8 @@ class GameEngine
   def build_game_state_for_process(player)
     # Build game state for AiProcessManager initialization
     map_size = game.game_map.size
+    initial_pos = {x: player.position_x, y: player.position_y}
+
     {
       game_map: {
         width: map_size[:width],
@@ -479,7 +526,7 @@ class GameEngine
         map_data: game.game_map.map_data,
         goal_position: game.game_map.goal_position
       },
-      initial_position: {x: player.position_x, y: player.position_y},
+      initial_position: initial_pos,
       initial_items: {
         dynamite_left: player.dynamite_left,
         bomb_left: player.bomb_left
@@ -492,31 +539,26 @@ class GameEngine
     }
   end
 
-  def build_turn_data(player)
+  def build_turn_data(player, turn_number)
     # Build turn data for AiProcessManager turn execution
     api_info = player.api_info
-    Rails.logger.debug "DEBUG build_turn_data: player.api_info = #{api_info.inspect}"
 
-    turn_data = {
-      turn_number: @current_round.game_turns.count + 1,
+    {
+      turn_number: turn_number,
       current_player: api_info,
       other_players: @current_round.players.where.not(id: player.id).map(&:api_info),
       enemies: @current_round.enemies.map(&:api_info),
       visible_map: build_visible_map(player)
     }
-
-    Rails.logger.debug "DEBUG build_turn_data: turn_data = #{turn_data.inspect}"
-    turn_data
   end
 
   def build_visible_map(player)
-    # Build visible map based on player's exploration
-    # For now, return the full map - TODO: implement exploration-based visibility
+    # Build visible map based on player's personal exploration map
     map_size = game.game_map.size
     {
       width: map_size[:width],
       height: map_size[:height],
-      map_data: game.game_map.map_data
+      map_data: player.my_map
     }
   end
 
@@ -546,15 +588,39 @@ class GameEngine
   def apply_final_bonuses(player)
     # Apply goal bonus if player reached goal
     if reached_goal?(player)
-      player.apply_goal_bonus
+      bonus = current_goal_bonus
+      player.apply_goal_bonus(bonus)
       player.save!
+      Rails.logger.info "Applied goal bonus of #{bonus} to player #{player.player_ai.name} (turn #{@current_round.game_turns.maximum(:turn_number)})"
     end
   end
 
+  def current_goal_bonus
+    # Goal bonus decreases by 10 points for every 10 turns
+    # Formula from original: MAX_GOAL_BONUS - ((turn - 1) / 10) * 10
+    # Use the last executed turn number (stored in @last_turn_number)
+    current_turn = @last_turn_number || 1
+    bonus = MAX_GOAL_BONUS - ((current_turn - 1) / 10) * 10
+    Rails.logger.info "Calculating goal bonus: turn=#{current_turn}, bonus=#{bonus}"
+    bonus
+  end
+
   def generate_item_locations
-    # TODO: Generate random item locations based on ITEM_QUANTITIES
-    # For now, return empty hash
-    {}
+    # Load items from game map's items_data
+    return {} unless game.game_map.items_data.present?
+
+    # Convert 2D array to hash format: {y => {x => item_index}}
+    items_hash = {}
+    game.game_map.items_data.each_with_index do |row, y|
+      row.each_with_index do |item, x|
+        next if item.nil? || item == 0
+
+        items_hash[y.to_s] ||= {}
+        items_hash[y.to_s][x.to_s] = item
+      end
+    end
+
+    items_hash
   end
 
   def cleanup_temp_files
@@ -568,5 +634,67 @@ class GameEngine
     end
 
     @temp_script_paths.clear
+  end
+
+  def start_ai_processes
+    Rails.logger.info "Starting AI processes for round #{@current_round.round_number}"
+
+    players = @current_round.players.includes(:player_ai).order(:id)
+
+    players.each_with_index do |player, player_index|
+      Rails.logger.info "Starting AI process for player #{player.id} (#{player.player_ai.name})"
+
+      begin
+        # Get AI script path
+        ai_script_path = get_ai_script_path(player)
+
+        # Create AI process manager
+        ai_manager = AiProcessManager.new(
+          ai_script_path: ai_script_path,
+          game_id: @current_round.game.id.to_s,
+          round_number: @current_round.round_number,
+          player_index: player_index,
+          player_ai_id: player.player_ai.id.to_s
+        )
+
+        # Start AI process
+        unless ai_manager.start
+          raise "Failed to start AI process for player #{player.id}"
+        end
+
+        # Initialize game with current state
+        game_state = build_game_state_for_process(player)
+        unless ai_manager.initialize_game(**game_state)
+          raise "Failed to initialize AI game for player #{player.id}"
+        end
+
+        # Store AI manager for this player
+        @ai_managers[player.id] = ai_manager
+
+        Rails.logger.info "AI process initialized for player #{player.id}, PID=#{ai_manager.process_pid}"
+      rescue => e
+        Rails.logger.error "Failed to start AI process for player #{player.id}: #{e.message}"
+        Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
+
+        # Mark player as timeout
+        player.update!(status: :timeout)
+
+        # Clean up partial AI manager if it exists
+        ai_manager&.stop
+      end
+    end
+  end
+
+  def stop_ai_processes
+    Rails.logger.info "Stopping AI processes for round #{@current_round.round_number}"
+
+    @ai_managers.each do |player_id, ai_manager|
+      Rails.logger.info "Stopping AI process for player #{player_id}, PID=#{ai_manager.process_pid}"
+      ai_manager.stop
+    rescue => e
+      Rails.logger.warn "Error stopping AI process for player #{player_id}: #{e.message}"
+    end
+
+    @ai_managers.clear
   end
 end

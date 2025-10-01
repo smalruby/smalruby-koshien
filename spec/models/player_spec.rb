@@ -236,6 +236,154 @@ RSpec.describe Player, type: :model do
     end
   end
 
+  describe "#at_goal_position?" do
+    it "ゴール位置にいる場合trueを返す" do
+      player.position_x = 2
+      player.position_y = 2
+      expect(player.at_goal_position?).to be true
+    end
+
+    it "ゴール位置にいない場合falseを返す" do
+      player.position_x = 1
+      player.position_y = 1
+      expect(player.at_goal_position?).to be false
+    end
+  end
+
+  describe "#calc_walk_bonus_with_counter" do
+    before do
+      player.walk_bonus_counter = 0
+      player.score = 0
+      player.walk_bonus = false
+      player.previous_position_x = 0
+      player.previous_position_y = 0
+      player.position_x = 0
+      player.position_y = 0
+    end
+
+    context "プレイヤーが移動していない場合" do
+      it "カウンターを増やさずfalseを返す" do
+        player.previous_position_x = player.position_x
+        player.previous_position_y = player.position_y
+
+        result = player.calc_walk_bonus_with_counter
+
+        expect(result).to be false
+        expect(player.walk_bonus_counter).to eq(0)
+        expect(player.score).to eq(0)
+      end
+    end
+
+    context "プレイヤーが移動した場合" do
+      before do
+        player.move_to(1, 0)
+      end
+
+      it "カウンターを1増やす" do
+        expect {
+          player.calc_walk_bonus_with_counter
+        }.to change { player.walk_bonus_counter }.by(1)
+      end
+
+      context "カウンターが5未満の場合" do
+        before do
+          player.walk_bonus_counter = 3
+        end
+
+        it "ボーナスを付与せずfalseを返す" do
+          original_score = player.score
+
+          result = player.calc_walk_bonus_with_counter
+
+          expect(result).to be false
+          expect(player.score).to eq(original_score)
+          expect(player.walk_bonus_counter).to eq(4)
+          expect(player.walk_bonus).to be false
+        end
+      end
+
+      context "カウンターが5に達し、ゴール位置でない場合" do
+        before do
+          player.walk_bonus_counter = 4
+          player.position_x = 1
+          player.position_y = 1
+        end
+
+        it "ボーナスを付与してtrueを返す" do
+          original_score = player.score
+
+          result = player.calc_walk_bonus_with_counter
+
+          expect(result).to be true
+          expect(player.score).to eq(original_score + GameConstants::WALK_BONUS)
+          expect(player.walk_bonus_counter).to eq(0)
+          expect(player.walk_bonus).to be true
+        end
+      end
+
+      context "カウンターが5に達し、ゴール位置にいる場合" do
+        before do
+          player.walk_bonus_counter = 4
+          player.position_x = 2
+          player.position_y = 2
+          player.previous_position_x = 2
+          player.previous_position_y = 1
+        end
+
+        it "ボーナスを付与せずfalseを返す" do
+          original_score = player.score
+
+          result = player.calc_walk_bonus_with_counter
+
+          expect(result).to be false
+          expect(player.score).to eq(original_score)
+          expect(player.walk_bonus_counter).to eq(5)
+          expect(player.walk_bonus).to be false
+        end
+      end
+
+      context "カウンターが5を超えてもゴール位置にいる場合" do
+        before do
+          player.walk_bonus_counter = 5
+          player.position_x = 2
+          player.position_y = 2
+          player.previous_position_x = 1
+          player.previous_position_y = 2
+        end
+
+        it "ボーナスを付与せずfalseを返す" do
+          original_score = player.score
+
+          result = player.calc_walk_bonus_with_counter
+
+          expect(result).to be false
+          expect(player.score).to eq(original_score)
+          expect(player.walk_bonus_counter).to eq(6)
+          expect(player.walk_bonus).to be false
+        end
+      end
+
+      context "カウンターが5を超えてゴール位置から離れた場合" do
+        before do
+          player.walk_bonus_counter = 5
+          player.position_x = 1
+          player.position_y = 1
+        end
+
+        it "ボーナスを付与してtrueを返す" do
+          original_score = player.score
+
+          result = player.calc_walk_bonus_with_counter
+
+          expect(result).to be true
+          expect(player.score).to eq(original_score + GameConstants::WALK_BONUS)
+          expect(player.walk_bonus_counter).to eq(0)
+          expect(player.walk_bonus).to be true
+        end
+      end
+    end
+  end
+
   describe "スコープ" do
     before do
       player.status = :playing

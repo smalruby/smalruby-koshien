@@ -12,6 +12,8 @@ class GameMap < ApplicationRecord
   serialize :map_data, coder: JSON
   serialize :map_height, coder: JSON
   serialize :goal_position, coder: JSON
+  serialize :players_data, coder: JSON
+  serialize :items_data, coder: JSON
 
   has_one_attached :thumbnail
 

@@ -220,16 +220,24 @@ RSpec.describe TurnProcessor, type: :model do
       turn_processor.send(:process_enemy_interactions)
 
       player1.reload
-      expect(player1.score).to be <= original_score  # Score may be reduced due to enemy discount
-      expect(player1.status).to eq("completed")  # Player status changes to completed when attacked
+      expect(player1.score).to eq(original_score + GameConstants::ENEMY_DISCOUNT)  # Score reduced by ENEMY_DISCOUNT
+      expect(player1.status).to eq("playing")  # Player continues playing after enemy attack
       expect(GameEvent.last.event_type).to eq("ENEMY_ATTACK")
     end
 
-    it "攻撃されたプレイヤーのステータスが完了状態になる" do
-      turn_processor.send(:process_enemy_interactions)
+    it "攻撃されたプレイヤーは1ラウンドにつき1回のみペナルティを受ける" do
+      original_score = player1.score
 
+      # First attack
+      turn_processor.send(:process_enemy_interactions)
       player1.reload
-      expect(player1.status).to eq("completed")
+      score_after_first = player1.score
+      expect(score_after_first).to eq(original_score + GameConstants::ENEMY_DISCOUNT)
+
+      # Second attack (should be ignored)
+      turn_processor.send(:process_enemy_interactions)
+      player1.reload
+      expect(player1.score).to eq(score_after_first)  # Score unchanged on second attack
     end
   end
 

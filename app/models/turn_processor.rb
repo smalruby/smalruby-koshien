@@ -43,9 +43,10 @@ class TurnProcessor
 
     # Extract actions from AI result
     actions = extract_actions(ai_result)
-    Rails.logger.debug "Player #{player.id} actions: #{actions.inspect}"
+    Rails.logger.info "🎮 Player #{player.id} (#{player.player_ai.name}) actions: #{actions.inspect}"
 
     actions.each do |action|
+      Rails.logger.info "  ▶️ Processing action: type=#{action[:type]}, details=#{action.inspect}"
       case action[:type]
       when "move"
         if action[:direction]
@@ -64,7 +65,7 @@ class TurnProcessor
         create_game_event(player, "WAIT")
       when "explore"
         # Player is exploring map area, create exploration event
-        create_game_event(player, "EXPLORE", {target: action[:target]})
+        create_game_event(player, "EXPLORE", {target: action[:target_position]})
       else
         Rails.logger.warn "Unknown action type: #{action[:type]}"
       end
@@ -93,6 +94,7 @@ class TurnProcessor
         normalized[:target_y] = action["target_y"] || action[:target_y]
         normalized[:item] = action["item"] || action[:item]
         normalized[:target] = action["target"] || action[:target]
+        normalized[:target_position] = action["target_position"] || action[:target_position]
         normalized[:position] = action["position"] || action[:position]
         normalized[:area_size] = action["area_size"] || action[:area_size]
 
@@ -107,11 +109,14 @@ class TurnProcessor
     old_x, old_y = player.position_x, player.position_y
     new_x, new_y = calculate_new_position(old_x, old_y, direction)
 
+    Rails.logger.info "  🚶 Movement: (#{old_x},#{old_y}) → (#{new_x},#{new_y}) via #{direction}"
+
     # Check if movement is valid
     if valid_movement?(new_x, new_y)
       # Update player position
       player.move_to(new_x, new_y)
       player.save!
+      Rails.logger.info "  ✅ Movement successful"
 
       create_game_event(player, "MOVE", {
         from: {x: old_x, y: old_y},
@@ -122,33 +127,39 @@ class TurnProcessor
       Rails.logger.debug "Player #{player.id} moved from (#{old_x},#{old_y}) to (#{new_x},#{new_y})"
     else
       # Movement blocked
+      Rails.logger.info "  ❌ Movement blocked to (#{new_x},#{new_y})"
       create_game_event(player, "MOVE_BLOCKED", {
         attempted: {x: new_x, y: new_y},
         direction: direction
       })
-
-      Rails.logger.debug "Player #{player.id} movement blocked to (#{new_x},#{new_y})"
     end
   end
 
   def process_move_to_target(player, target_x, target_y)
     old_x, old_y = player.position_x, player.position_y
 
+    Rails.logger.info "  🎯 process_move_to_target: from (#{old_x},#{old_y}) to target (#{target_x},#{target_y})"
+
     # Calculate direction to target (only allow one step movement)
     dx = target_x - old_x
     dy = target_y - old_y
+
+    Rails.logger.info "  🎯 Delta: dx=#{dx}, dy=#{dy}"
 
     # Normalize to single step
     if dx.abs > dy.abs
       new_x = old_x + ((dx > 0) ? 1 : -1)
       new_y = old_y
+      Rails.logger.info "  🎯 Moving in X direction: (#{old_x},#{old_y}) → (#{new_x},#{new_y})"
     elsif dy != 0
       new_x = old_x
       new_y = old_y + ((dy > 0) ? 1 : -1)
+      Rails.logger.info "  🎯 Moving in Y direction: (#{old_x},#{old_y}) → (#{new_x},#{new_y})"
     else
       # Already at target
       new_x = old_x
       new_y = old_y
+      Rails.logger.info "  🎯 Already at target"
     end
 
     # Check if movement is valid
@@ -501,9 +512,13 @@ class TurnProcessor
   end
 
   def collect_item(player, item_index)
-    # Add item to player's inventory
-    if item_index.between?(1, 5)
-      player.get_positive_item(item_index)
+    # Process both positive (1-5) and negative (6-9) items
+    if item_index.between?(1, 9)
+      # Only track positive items in inventory
+      if item_index.between?(1, 5)
+        player.get_positive_item(item_index)
+      end
+
       score_bonus = ITEM_SCORES[item_index]
       player.score += score_bonus
       player.save!
@@ -511,7 +526,8 @@ class TurnProcessor
       # Remove item from map
       remove_item_from_map(player.position_x, player.position_y)
 
-      create_game_event(player, "COLLECT_ITEM", {
+      event_type = (score_bonus >= 0) ? "COLLECT_ITEM" : "HIT_TRAP"
+      create_game_event(player, event_type, {
         item_index: item_index,
         score_bonus: score_bonus,
         position: {x: player.position_x, y: player.position_y}
@@ -534,11 +550,17 @@ class TurnProcessor
     enemies = game_round.enemies
     players = game_round.players.where(status: :playing)
 
+    Rails.logger.debug "Processing enemy interactions for turn #{game_turn.turn_number}: #{enemies.count} enemies, #{players.count} playing players"
+
     enemies.each do |enemy|
       next if enemy.killed?
 
       players.each do |player|
+        distance = (enemy.position_x - player.position_x).abs + (enemy.position_y - player.position_y).abs
+        Rails.logger.debug "  Enemy #{enemy.id} at (#{enemy.position_x}, #{enemy.position_y}) vs Player #{player.id} at (#{player.position_x}, #{player.position_y}): distance=#{distance}"
+
         if enemy_player_interaction?(enemy, player)
+          Rails.logger.info "  ⚔️  Enemy-Player interaction detected!"
           handle_enemy_player_interaction(enemy, player)
         end
       end
@@ -552,26 +574,29 @@ class TurnProcessor
   end
 
   def handle_enemy_player_interaction(enemy, player)
-    # Determine player index (0 for first player, 1 for second player)
-    player_index = if player.player_ai == game_round.game.first_player_ai
-      0
-    else
-      1
+    # Check if player has already been attacked in this round
+    already_attacked = GameEvent.exists?(
+      game_turn_id: game_round.game_turns.pluck(:id),
+      player: player,
+      event_type: "ENEMY_ATTACK"
+    )
+
+    if already_attacked
+      Rails.logger.debug "Player #{player.id} already attacked by enemy in this round, skipping"
+      return
     end
 
-    # Enemy attacks player
-    if enemy.can_attack?(player_index)
-      player.score += ENEMY_DISCOUNT
-      player.status = :completed
-      player.save!
+    # Enemy attacks player when in range (distance <= 1) - only once per round
+    player.score += ENEMY_DISCOUNT
+    player.save!
 
-      create_game_event(player, "ENEMY_ATTACK", {
-        enemy_id: enemy.id,
-        position: {x: player.position_x, y: player.position_y}
-      })
+    create_game_event(player, "ENEMY_ATTACK", {
+      enemy_id: enemy.id,
+      position: {x: player.position_x, y: player.position_y},
+      score_penalty: ENEMY_DISCOUNT
+    })
 
-      Rails.logger.debug "Enemy #{enemy.id} attacked player #{player.id}"
-    end
+    Rails.logger.info "Enemy #{enemy.id} attacked player #{player.id} at (#{player.position_x}, #{player.position_y}). Score penalty: #{ENEMY_DISCOUNT}"
   end
 
   def update_player_scores

@@ -48,15 +48,26 @@ class AiProcessManager
       "RAILS_ENV" => Rails.env
     }
 
+    Rails.logger.info "AI Process starting: script=#{@ai_script_path}, cmd=#{cmd}, env=#{env.inspect}"
+
     @stdin, @stdout, @stderr, @thread = Open3.popen3(env, cmd)
     @process_pid = @thread.pid
     @status = :starting
     @last_output_time = Time.now
 
-    Rails.logger.info "AI Process started: PID=#{@process_pid}, script=#{@ai_script_path}, cmd=#{cmd}"
+    # Start a thread to monitor stderr
+    @stderr_thread = Thread.new do
+      while (line = @stderr.gets)
+        Rails.logger.warn "AI STDERR [PID=#{@process_pid}]: #{line.chomp}"
+      end
+    rescue => e
+      Rails.logger.debug "AI STDERR thread ended: #{e.message}"
+    end
+
+    Rails.logger.info "AI Process started: PID=#{@process_pid}, status=#{@status}"
     true
   rescue => e
-    Rails.logger.error "Failed to start AI process: #{e.message}"
+    Rails.logger.error "Failed to start AI process: #{e.message}\n#{e.backtrace.join("\n")}"
     @status = :failed
     false
   end
@@ -81,17 +92,21 @@ class AiProcessManager
       }
     }
 
+    Rails.logger.info "AI Process [PID=#{@process_pid}] sending initialize message..."
     send_message(init_message)
 
     # Wait for ready response
+    Rails.logger.info "AI Process [PID=#{@process_pid}] waiting for ready message..."
     response = wait_for_message
+    Rails.logger.info "AI Process [PID=#{@process_pid}] received response: type=#{response&.dig("type")}, player_name=#{response&.dig("data", "player_name")}"
+
     if response && response["type"] == "ready"
       @player_name = response.dig("data", "player_name")
       @status = :ready
-      Rails.logger.info "AI Process initialized: #{@player_name}"
+      Rails.logger.info "AI Process [PID=#{@process_pid}] initialized successfully: player_name=#{@player_name}, status=#{@status}"
       true
     else
-      Rails.logger.error "AI Process failed to respond with ready message"
+      Rails.logger.error "AI Process [PID=#{@process_pid}] failed to respond with ready message, got: #{response.inspect}"
       @status = :failed
       false
     end
@@ -115,9 +130,10 @@ class AiProcessManager
       }
     }
 
-    Rails.logger.debug "DEBUG AiProcessManager start_turn: sending message with current_player=#{current_player.inspect}"
+    Rails.logger.info "AI Process [PID=#{@process_pid}] sending turn_start: turn_number=#{turn_number}, player_position=#{current_player[:position]}"
     send_message(turn_message)
     @status = :turn_active
+    Rails.logger.info "AI Process [PID=#{@process_pid}] status changed to :turn_active"
     true
   end
 
@@ -125,27 +141,33 @@ class AiProcessManager
   def wait_for_turn_completion
     raise "No active turn" unless @status == :turn_active
 
+    Rails.logger.info "AI Process [PID=#{@process_pid}] waiting for turn completion..."
+    message_count = 0
+
     while @status == :turn_active
       message = wait_for_message
+      message_count += 1
+
+      Rails.logger.info "AI Process [PID=#{@process_pid}] received message ##{message_count}: type=#{message&.dig("type")}"
 
       case message&.dig("type")
       when "turn_over"
         actions = message.dig("data", "actions") || []
         @status = :turn_completed
+        Rails.logger.info "AI Process [PID=#{@process_pid}] turn completed: actions=#{actions.length}, status=#{@status}"
+        Rails.logger.info "🔍 Actions received: #{actions.inspect}"
         return {success: true, actions: actions}
       when "debug"
-        Rails.logger.debug "AI Debug: #{message.dig("data", "message")}"
+        Rails.logger.debug "AI Debug [PID=#{@process_pid}]: #{message.dig("data", "message")}"
         # Continue waiting for turn_over
       when "map_area_request"
         # Handle map area request from AI
-        Rails.logger.debug "DEBUG: Received map_area_request: #{message.inspect}"
         x = message.dig("data", "x")
         y = message.dig("data", "y")
         area_size = message.dig("data", "area_size") || 5
-        Rails.logger.debug "DEBUG: Processing map area request for x=#{x}, y=#{y}, area_size=#{area_size}"
+        Rails.logger.info "AI Process [PID=#{@process_pid}] map_area_request: x=#{x}, y=#{y}, area_size=#{area_size}"
 
         map_area_data = get_map_area_data(x, y, area_size)
-        Rails.logger.debug "DEBUG: Generated map area data: #{map_area_data.inspect}"
 
         # Send response back to AI
         response = {
@@ -153,23 +175,24 @@ class AiProcessManager
           timestamp: Time.now.utc.iso8601,
           data: map_area_data
         }
-        Rails.logger.debug "DEBUG: Sending map_area_response: #{response.inspect}"
+        Rails.logger.info "AI Process [PID=#{@process_pid}] sending map_area_response"
         send_message(response)
-        Rails.logger.debug "DEBUG: map_area_response sent, continuing to wait for turn_over"
         # Continue waiting for turn_over
       when "error"
-        Rails.logger.error "AI Error: #{message.dig("data", "message")}"
+        Rails.logger.error "AI Error [PID=#{@process_pid}]: #{message.dig("data", "message")}"
         # Continue waiting for turn_over
       when nil
         # Timeout or process ended
         @status = :timeout
+        Rails.logger.error "AI Process [PID=#{@process_pid}] timeout or ended: status=#{@status}, alive=#{alive?}"
         return {success: false, reason: :timeout}
       else
-        Rails.logger.warn "Unexpected message type: #{message["type"]}"
+        Rails.logger.warn "AI Process [PID=#{@process_pid}] unexpected message type: #{message["type"]}"
         # Continue waiting
       end
     end
 
+    Rails.logger.warn "AI Process [PID=#{@process_pid}] exited wait loop with status: #{@status}"
     {success: false, reason: :unknown}
   end
 
@@ -187,8 +210,10 @@ class AiProcessManager
       }
     }
 
+    Rails.logger.info "AI Process [PID=#{@process_pid}] sending turn_end_confirm: turn=#{@turn_count}, actions=#{actions_processed}, next_turn=#{@turn_count < MAX_TURN}"
     send_message(confirm_message)
     @status = (@turn_count >= MAX_TURN) ? :game_completed : :ready
+    Rails.logger.info "AI Process [PID=#{@process_pid}] status changed to: #{@status}"
     true
   end
 
@@ -355,44 +380,78 @@ class AiProcessManager
   def get_map_area_data(x, y, area_size = 5)
     Rails.logger.debug "DEBUG: get_map_area_data called with x=#{x}, y=#{y}, area_size=#{area_size}"
 
-    # This is a simplified implementation that returns mock data
-    # In a full implementation, this would access the actual game state
-    # and return real map data based on the current game round
+    # Find game_round and player using instance variables
+    game = Game.find(@game_id)
+    game_round = game.game_rounds.find_by(round_number: @round_number)
+    return {} unless game_round
 
-    # For now, return mock data structure matching the expected format
+    player = game_round.players.find_by(player_ai_id: @player_ai_id)
+    return {} unless player
+
+    game_map = game_round.game.game_map
+    map_data = game_map.map_data
+    items_data = game_map.items_data || Array.new(map_data.size) { Array.new(map_data.first.size, 0) }
+
+    map_width = map_data.first.size
+    map_height = map_data.size
     half_size = area_size / 2
-    Rails.logger.debug "DEBUG: half_size=#{half_size}"
 
-    # Calculate the area bounds (5x5 around the target position)
-    start_x = [0, x - half_size].max
-    end_x = [16, x + half_size].min  # Assuming 17x17 map
-    start_y = [0, y - half_size].max
-    end_y = [16, y + half_size].min
-    Rails.logger.debug "DEBUG: bounds: start_x=#{start_x}, end_x=#{end_x}, start_y=#{start_y}, end_y=#{end_y}"
-
-    # Mock map data - in real implementation this would come from GameMap
-    map_area = []
-    (start_y..end_y).each do |map_y|
-      row = []
-      (start_x..end_x).each do |map_x|
-        # 0 = empty space, 2 = wall - mock data for now
-        cell_value = (map_x == 0 || map_x == 16 || map_y == 0 || map_y == 16) ? 2 : 0
-        row << cell_value
-      end
-      map_area << row
+    # Calculate range with boundary checks
+    rng_x = if x < half_size
+      (0..(x + half_size))
+    elsif x > map_width - half_size - 1
+      ((x - half_size)..(map_width - 1))
+    else
+      ((x - half_size)..(x + half_size))
     end
-    Rails.logger.debug "DEBUG: generated map_area: #{map_area.inspect}"
+
+    rng_y = if y < half_size
+      (0..(y + half_size))
+    elsif y > map_height - half_size - 1
+      ((y - half_size)..(map_height - 1))
+    else
+      ((y - half_size)..(y + half_size))
+    end
+
+    # Create snapshot: start with map data
+    map_snapshot = []
+    map_data[rng_y].each do |row|
+      map_snapshot << row[rng_x].dup
+    end
+
+    # Overlay items from items_data (ITEM_MARKS mapping)
+    items_data[rng_y].each_with_index do |row, y_pos|
+      row[rng_x].each_with_index do |item_idx, x_pos|
+        if item_idx.to_i != 0  # Not ITEM_BLANK_INDEX
+          # Map item indices to marks (4-9 for items 1-6)
+          map_snapshot[y_pos][x_pos] = item_idx + 3 if item_idx.between?(1, 6)
+        end
+      end
+    end
+
+    # Update player's personal map with this snapshot
+    player.update_my_map!(rng_x, rng_y, map_snapshot)
+
+    # Check for other player in range
+    other_players = game_round.players.where.not(id: player.id)
+    other_player_pos = nil
+    other_players.each do |other|
+      if rng_x.include?(other.position_x) && rng_y.include?(other.position_y)
+        other_player_pos = [other.position_x, other.position_y]
+        break
+      end
+    end
 
     result = {
-      map: map_area,
+      map: map_snapshot,
       center_x: x,
       center_y: y,
-      start_x: start_x,
-      start_y: start_y,
-      end_x: end_x,
-      end_y: end_y,
-      other_player: nil,  # Would be calculated based on other player position
-      enemies: []  # Would be calculated based on enemy positions
+      start_x: rng_x.first,
+      start_y: rng_y.first,
+      end_x: rng_x.last,
+      end_y: rng_y.last,
+      other_player: other_player_pos,
+      enemies: []  # TODO: implement enemy detection in range
     }
     Rails.logger.debug "DEBUG: returning result: #{result.inspect}"
     result

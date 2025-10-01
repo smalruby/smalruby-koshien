@@ -12,6 +12,9 @@ class Player < ApplicationRecord
   validates :character_level, presence: true, numericality: {greater_than_or_equal_to: 1}
   validates :walk_bonus_counter, presence: true, numericality: {greater_than_or_equal_to: 0}
 
+  serialize :my_map, coder: JSON
+  serialize :map_fov, coder: JSON
+
   enum :status, {
     playing: 0,
     completed: 1,
@@ -52,11 +55,11 @@ class Player < ApplicationRecord
     true
   end
 
-  def apply_goal_bonus
+  def apply_goal_bonus(bonus = 100)
     return false if has_goal_bonus?
 
     self.has_goal_bonus = true
-    self.score += 100 # ゴールボーナス
+    self.score += bonus # ゴールボーナス (turn-based)
     true
   end
 
@@ -104,7 +107,10 @@ class Player < ApplicationRecord
 
     self.walk_bonus_counter += 1
 
-    if walk_bonus_counter >= WALK_BONUS_BOUNDARY
+    # ゴールした瞬間は歩行ボーナスをカウントしない
+    at_goal = at_goal_position?
+
+    if walk_bonus_counter >= WALK_BONUS_BOUNDARY && !at_goal
       self.score += WALK_BONUS
       self.walk_bonus_counter = 0
       self.walk_bonus = true
@@ -114,12 +120,48 @@ class Player < ApplicationRecord
     end
   end
 
+  def at_goal_position?
+    goal_pos = game_round.game.game_map.goal_position
+    position_x == goal_pos["x"] && position_y == goal_pos["y"]
+  end
+
   def finished?
     completed? || timeout? || timeup?
   end
 
   def encount_enemy?(enemy_info)
     [position_x, position_y] == [enemy_info[:x].to_i, enemy_info[:y].to_i]
+  end
+
+  def update_my_map!(rng_x, rng_y, map_snapshot)
+    # Update player's personal map with snapshot data for the specified range
+    # Deep clone to ensure Rails detects changes
+    current_my_map = my_map.map(&:dup)
+    current_map_fov = map_fov.map(&:dup)
+
+    Rails.logger.info "🗺️ Updating my_map for player #{id} at range x=#{rng_x.inspect}, y=#{rng_y.inspect}"
+    Rails.logger.info "🗺️ Map snapshot: #{map_snapshot.inspect}"
+    Rails.logger.info "🗺️ Before: my_map[#{rng_y.first}][#{rng_x.first}] = #{current_my_map[rng_y.first][rng_x.first]}"
+
+    rng_y.each_with_index do |my_map_y, y_pos|
+      rng_x.each_with_index do |my_map_x, x_pos|
+        current_my_map[my_map_y][my_map_x] = map_snapshot[y_pos][x_pos]
+      end
+    end
+
+    # Mark explored cells with LATEST_SEARCH_LEVEL in field of view
+    rng_y.each do |my_map_y|
+      rng_x.each do |my_map_x|
+        current_map_fov[my_map_y][my_map_x] = LATEST_SEARCH_LEVEL
+      end
+    end
+
+    self.my_map = current_my_map
+    self.map_fov = current_map_fov
+
+    save!
+
+    Rails.logger.info "🗺️ After save: my_map[#{rng_y.first}][#{rng_x.first}] = #{my_map[rng_y.first][rng_x.first]}"
   end
 
   def api_info

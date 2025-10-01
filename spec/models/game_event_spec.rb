@@ -121,6 +121,7 @@ RSpec.describe GameEvent, type: :model do
         GameEvent::USE_BOMB_FAILED,
         GameEvent::PLAYER_COLLISION,
         GameEvent::COLLECT_ITEM,
+        GameEvent::HIT_TRAP,
         GameEvent::ENEMY_ATTACK,
         GameEvent::WALK_BONUS,
         GameEvent::EXPLORE,

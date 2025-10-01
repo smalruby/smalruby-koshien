@@ -11,7 +11,7 @@ include Smalruby3 # standard:disable Style/MixinUsage
 # Initialize JSON communication (required - traditional mode removed)
 # JSON mode is now the only supported mode
 # Skip initialization in test environment to avoid setup failures
-unless Rails.env.test?
+unless defined?(Rails) && Rails.env.test?
   if defined?(Smalruby3::Koshien)
     adapter = Smalruby3::Koshien.instance
     if adapter.respond_to?(:setup_json_communication)

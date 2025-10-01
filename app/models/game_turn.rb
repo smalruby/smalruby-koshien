@@ -8,4 +8,8 @@ class GameTurn < ApplicationRecord
   scope :finished, -> { where(turn_finished: true) }
   scope :unfinished, -> { where(turn_finished: false) }
   scope :ordered, -> { order(:turn_number) }
+
+  # Delegate players access to game_round
+  # This provides a convenient way to access players for this turn
+  delegate :players, to: :game_round
 end
