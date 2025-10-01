@@ -735,8 +735,59 @@ module Smalruby3
     def locate_objects(result:, sq_size: 5, cent: player, objects: "ABCD")
       result ||= List.new
 
+      # Parse center position
+      cent_coords = parse_position_string(cent)
+      cent_x, cent_y = cent_coords
+
+      # Calculate search area bounds
+      half_size = sq_size / 2
+      min_x = [0, cent_x - half_size].max
+      max_x = [19, cent_x + half_size].min
+      min_y = [0, cent_y - half_size].max
+      max_y = [19, cent_y + half_size].min
+
       object_positions = []
-      result.replace(object_positions.map { |x| Position.new(x).to_s })
+
+      if in_json_mode?
+        # Search through visible map for matching objects
+        if @current_turn_data && @current_turn_data["visible_map"]
+          visible_map = @current_turn_data["visible_map"]
+          map_data = visible_map["map_data"]
+
+          if map_data&.is_a?(Array)
+            # Map data is a 2D array with numeric item codes
+            # Convert numeric codes to character codes for comparison
+            # Positive items: 1-5 => "a"-"e"
+            # Negative items: 6-9 => "A"-"D"
+            code_to_char = {
+              1 => "a", 2 => "b", 3 => "c", 4 => "d", 5 => "e",
+              6 => "A", 7 => "B", 8 => "C", 9 => "D"
+            }
+
+            (min_y..max_y).each do |y|
+              next unless map_data[y]
+              (min_x..max_x).each do |x|
+                cell_value = map_data[y][x]
+                next unless cell_value
+
+                # Convert numeric code to character code
+                cell_char = code_to_char[cell_value]
+                next unless cell_char
+
+                # Check if cell character matches any of the requested objects
+                if objects.include?(cell_char)
+                  object_positions << [x, y]
+                end
+              end
+            end
+          end
+        end
+      end
+
+      # Convert to position strings and update result list
+      # Sort by y coordinate first, then x coordinate (as per documentation)
+      object_positions.sort_by! { |pos| [pos[1], pos[0]] }
+      result.replace(object_positions.map { |coords| "#{coords[0]}:#{coords[1]}" })
       result
     end
 

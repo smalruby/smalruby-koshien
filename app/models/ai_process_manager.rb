@@ -419,12 +419,15 @@ class AiProcessManager
       map_snapshot << row[rng_x].dup
     end
 
-    # Overlay items from items_data (ITEM_MARKS mapping)
+    # Overlay items from items_data
+    # Items are stored in items_data with codes 1-9:
+    # - Codes 1-5: Positive items (a-e) - tea, sweets, COIN, dolphin, sword
+    # - Codes 6-9: Negative items (A-D) - poison, snake, trap, bomb
     items_data[rng_y].each_with_index do |row, y_pos|
       row[rng_x].each_with_index do |item_idx, x_pos|
         if item_idx.to_i != 0  # Not ITEM_BLANK_INDEX
-          # Map item indices to marks (4-9 for items 1-6)
-          map_snapshot[y_pos][x_pos] = item_idx + 3 if item_idx.between?(1, 6)
+          # Keep item codes as-is (1-9) in the map snapshot
+          map_snapshot[y_pos][x_pos] = item_idx if item_idx.between?(1, 9)
         end
       end
     end
