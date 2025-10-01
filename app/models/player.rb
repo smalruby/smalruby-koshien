@@ -107,7 +107,10 @@ class Player < ApplicationRecord
 
     self.walk_bonus_counter += 1
 
-    if walk_bonus_counter >= WALK_BONUS_BOUNDARY
+    # ゴールした瞬間は歩行ボーナスをカウントしない
+    at_goal = at_goal_position?
+
+    if walk_bonus_counter >= WALK_BONUS_BOUNDARY && !at_goal
       self.score += WALK_BONUS
       self.walk_bonus_counter = 0
       self.walk_bonus = true
@@ -115,6 +118,11 @@ class Player < ApplicationRecord
     else
       false
     end
+  end
+
+  def at_goal_position?
+    goal_pos = game_round.game.game_map.goal_position
+    position_x == goal_pos["x"] && position_y == goal_pos["y"]
   end
 
   def finished?
