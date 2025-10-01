@@ -410,13 +410,17 @@ module Smalruby3
         log("Turn over")
       elsif in_json_mode?
         # Check for queued turn_start from previous turn_over
+        # But don't clear actions yet - we need them for send_turn_over
         queued_turn_start = @message_queue.find { |msg| msg["type"] == "turn_start" }
         if queued_turn_start
           @message_queue.delete(queued_turn_start)
-          handle_turn_start(queued_turn_start["data"])
+          # Update turn data but don't clear actions yet
+          update_turn_data(queued_turn_start["data"])
         end
 
         send_turn_over
+        # Clear actions AFTER sending them
+        clear_actions
         wait_for_turn_completion
       else
         log("Turn over")
@@ -1300,7 +1304,7 @@ module Smalruby3
       })
     end
 
-    def handle_turn_start(data)
+    def update_turn_data(data)
       @current_turn_data = data
       @current_turn = data["turn_number"]
 
@@ -1311,8 +1315,11 @@ module Smalruby3
           @current_position = {x: current_player["x"], y: current_player["y"]}
         end
       end
+    end
 
-      # Clear previous actions
+    def handle_turn_start(data)
+      update_turn_data(data)
+      # Clear previous actions when starting a new turn
       clear_actions
     end
 
@@ -1365,7 +1372,6 @@ module Smalruby3
           actions: actions
         }
       })
-      clear_actions
     end
 
     def wait_for_turn_completion

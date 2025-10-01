@@ -43,9 +43,10 @@ class TurnProcessor
 
     # Extract actions from AI result
     actions = extract_actions(ai_result)
-    Rails.logger.debug "Player #{player.id} actions: #{actions.inspect}"
+    Rails.logger.info "🎮 Player #{player.id} (#{player.player_ai.name}) actions: #{actions.inspect}"
 
     actions.each do |action|
+      Rails.logger.info "  ▶️ Processing action: type=#{action[:type]}, details=#{action.inspect}"
       case action[:type]
       when "move"
         if action[:direction]
@@ -108,11 +109,14 @@ class TurnProcessor
     old_x, old_y = player.position_x, player.position_y
     new_x, new_y = calculate_new_position(old_x, old_y, direction)
 
+    Rails.logger.info "  🚶 Movement: (#{old_x},#{old_y}) → (#{new_x},#{new_y}) via #{direction}"
+
     # Check if movement is valid
     if valid_movement?(new_x, new_y)
       # Update player position
       player.move_to(new_x, new_y)
       player.save!
+      Rails.logger.info "  ✅ Movement successful"
 
       create_game_event(player, "MOVE", {
         from: {x: old_x, y: old_y},
@@ -123,12 +127,11 @@ class TurnProcessor
       Rails.logger.debug "Player #{player.id} moved from (#{old_x},#{old_y}) to (#{new_x},#{new_y})"
     else
       # Movement blocked
+      Rails.logger.info "  ❌ Movement blocked to (#{new_x},#{new_y})"
       create_game_event(player, "MOVE_BLOCKED", {
         attempted: {x: new_x, y: new_y},
         direction: direction
       })
-
-      Rails.logger.debug "Player #{player.id} movement blocked to (#{new_x},#{new_y})"
     end
   end
 
