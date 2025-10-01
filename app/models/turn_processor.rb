@@ -578,7 +578,7 @@ class TurnProcessor
     already_attacked = GameEvent.exists?(
       game_turn_id: game_round.game_turns.pluck(:id),
       player: player,
-      event_type: 'ENEMY_ATTACK'
+      event_type: "ENEMY_ATTACK"
     )
 
     if already_attacked
