@@ -550,11 +550,17 @@ class TurnProcessor
     enemies = game_round.enemies
     players = game_round.players.where(status: :playing)
 
+    Rails.logger.debug "Processing enemy interactions for turn #{game_turn.turn_number}: #{enemies.count} enemies, #{players.count} playing players"
+
     enemies.each do |enemy|
       next if enemy.killed?
 
       players.each do |player|
+        distance = (enemy.position_x - player.position_x).abs + (enemy.position_y - player.position_y).abs
+        Rails.logger.debug "  Enemy #{enemy.id} at (#{enemy.position_x}, #{enemy.position_y}) vs Player #{player.id} at (#{player.position_x}, #{player.position_y}): distance=#{distance}"
+
         if enemy_player_interaction?(enemy, player)
+          Rails.logger.info "  ⚔️  Enemy-Player interaction detected!"
           handle_enemy_player_interaction(enemy, player)
         end
       end
@@ -568,26 +574,29 @@ class TurnProcessor
   end
 
   def handle_enemy_player_interaction(enemy, player)
-    # Determine player index (0 for first player, 1 for second player)
-    player_index = if player.player_ai == game_round.game.first_player_ai
-      0
-    else
-      1
+    # Check if player has already been attacked in this round
+    already_attacked = GameEvent.exists?(
+      game_turn_id: game_round.game_turns.pluck(:id),
+      player: player,
+      event_type: 'ENEMY_ATTACK'
+    )
+
+    if already_attacked
+      Rails.logger.debug "Player #{player.id} already attacked by enemy in this round, skipping"
+      return
     end
 
-    # Enemy attacks player
-    if enemy.can_attack?(player_index)
-      player.score += ENEMY_DISCOUNT
-      player.status = :completed
-      player.save!
+    # Enemy attacks player when in range (distance <= 1) - only once per round
+    player.score += ENEMY_DISCOUNT
+    player.save!
 
-      create_game_event(player, "ENEMY_ATTACK", {
-        enemy_id: enemy.id,
-        position: {x: player.position_x, y: player.position_y}
-      })
+    create_game_event(player, "ENEMY_ATTACK", {
+      enemy_id: enemy.id,
+      position: {x: player.position_x, y: player.position_y},
+      score_penalty: ENEMY_DISCOUNT
+    })
 
-      Rails.logger.debug "Enemy #{enemy.id} attacked player #{player.id}"
-    end
+    Rails.logger.info "Enemy #{enemy.id} attacked player #{player.id} at (#{player.position_x}, #{player.position_y}). Score penalty: #{ENEMY_DISCOUNT}"
   end
 
   def update_player_scores

@@ -312,8 +312,7 @@ class GameEngine
 
       Rails.logger.debug "Enemy moved to (#{enemy.position_x}, #{enemy.position_y})"
 
-      # Check for enemy-player collisions and apply score penalties
-      check_enemy_player_collisions(enemy, players, turn)
+      # Note: Enemy-player collision detection is now handled by TurnProcessor#process_enemy_interactions
     end
   end
 

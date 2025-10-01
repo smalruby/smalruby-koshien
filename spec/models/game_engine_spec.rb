@@ -125,16 +125,16 @@ RSpec.describe GameEngine, type: :model do
       end
     end
 
-    context "全プレイヤーが終了した場合" do
+    context "全プレイヤーがタイムアウトした場合" do
       before do
-        player1.update!(status: :completed)
+        player1.update!(status: :timeout)
         player2.update!(status: :timeout)
       end
 
-      it "全員終了を返す" do
+      it "全員タイムアウトを返す" do
         result = game_engine.send(:check_win_conditions, turn)
 
-        expect(result[:type]).to eq(:all_finished)
+        expect(result[:type]).to eq(:all_timeout)
       end
     end
 
