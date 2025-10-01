@@ -512,9 +512,13 @@ class TurnProcessor
   end
 
   def collect_item(player, item_index)
-    # Add item to player's inventory
-    if item_index.between?(1, 5)
-      player.get_positive_item(item_index)
+    # Process both positive (1-5) and negative (6-9) items
+    if item_index.between?(1, 9)
+      # Only track positive items in inventory
+      if item_index.between?(1, 5)
+        player.get_positive_item(item_index)
+      end
+
       score_bonus = ITEM_SCORES[item_index]
       player.score += score_bonus
       player.save!
@@ -522,7 +526,8 @@ class TurnProcessor
       # Remove item from map
       remove_item_from_map(player.position_x, player.position_y)
 
-      create_game_event(player, "COLLECT_ITEM", {
+      event_type = (score_bonus >= 0) ? "COLLECT_ITEM" : "HIT_TRAP"
+      create_game_event(player, event_type, {
         item_index: item_index,
         score_bonus: score_bonus,
         position: {x: player.position_x, y: player.position_y}

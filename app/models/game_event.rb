@@ -34,6 +34,7 @@ class GameEvent < ApplicationRecord
   USE_BOMB_FAILED = "USE_BOMB_FAILED".freeze
   PLAYER_COLLISION = "PLAYER_COLLISION".freeze
   COLLECT_ITEM = "COLLECT_ITEM".freeze
+  HIT_TRAP = "HIT_TRAP".freeze
   ENEMY_ATTACK = "ENEMY_ATTACK".freeze
   WALK_BONUS = "WALK_BONUS".freeze
   EXPLORE = "EXPLORE".freeze
@@ -59,6 +60,7 @@ class GameEvent < ApplicationRecord
     USE_BOMB_FAILED,
     PLAYER_COLLISION,
     COLLECT_ITEM,
+    HIT_TRAP,
     ENEMY_ATTACK,
     WALK_BONUS,
     EXPLORE,

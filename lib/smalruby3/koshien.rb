@@ -422,15 +422,30 @@ module Smalruby3
         result = wait_for_turn_completion
         warn "🔄 turn_over: wait_for_turn_completion returned #{result}"
 
-        # Process queued turn_start AFTER waiting for turn completion
-        # This ensures turn data is updated for the NEXT iteration
-        queued_turn_start = @message_queue.find { |msg| msg["type"] == "turn_start" }
-        if queued_turn_start
-          warn "🔄 turn_over: found queued turn_start after wait, processing it for next turn"
-          @message_queue.delete(queued_turn_start)
-          update_turn_data(queued_turn_start["data"])
-        else
-          warn "🔄 turn_over: no queued turn_start found after wait"
+        # Wait for NEXT turn_start before returning
+        # This ensures the loop only executes once per game turn
+        # But stop if we get no messages (process being terminated)
+        warn "🔄 turn_over: waiting for next turn_start"
+        timeout_count = 0
+        loop do
+          msg = read_message
+          warn "🔄 turn_over: received message type=#{msg&.dig("type")}"
+
+          if msg && msg["type"] == "turn_start"
+            update_turn_data(msg["data"])
+            warn "🔄 turn_over: processed turn_start for turn #{msg.dig("data", "turn_number")}"
+            break
+          elsif msg.nil?
+            timeout_count += 1
+            warn "🔄 turn_over: no message received (#{timeout_count}/3)"
+            if timeout_count >= 3
+              warn "🔄 turn_over: no messages after 3 attempts, process likely terminated"
+              break
+            end
+            sleep 0.1
+          else
+            warn "🔄 turn_over: ignoring message type=#{msg["type"]}"
+          end
         end
 
         result
@@ -930,7 +945,9 @@ module Smalruby3
         # Handle both string and symbol keys
         x = pos["x"] || pos[:x]
         y = pos["y"] || pos[:y]
-        "#{x}:#{y}"
+        result = "#{x}:#{y}"
+        warn "🎯 koshien.goal called: pos=#{pos.inspect}, result=#{result.inspect}"
+        result
       else
         "14:14"
       end
@@ -1002,7 +1019,9 @@ module Smalruby3
         position(0, 0)
       elsif in_json_mode?
         pos = current_player_position
-        "#{pos[:x]}:#{pos[:y]}"
+        result = "#{pos[:x]}:#{pos[:y]}"
+        warn "🎯 koshien.player called: pos=#{pos.inspect}, result=#{result.inspect}"
+        result
       else
         position(0, 0)
       end
@@ -1273,7 +1292,14 @@ module Smalruby3
     end
 
     def current_player_position
-      # First try to get position from current turn data
+      # Prioritize locally tracked position (reflects moves made during turn)
+      # over turn_start data (position at start of turn)
+      if @current_position
+        warn "DEBUG current_player_position: using @current_position=#{@current_position.inspect}"
+        return @current_position
+      end
+
+      # Fallback to turn data if local position not available
       if @current_turn_data && @current_turn_data["current_player"]
         current_player = @current_turn_data["current_player"]
         warn "DEBUG current_player_position: using turn data current_player=#{current_player.inspect}"
@@ -1290,9 +1316,9 @@ module Smalruby3
         end
       end
 
-      # Fallback to locally tracked position
-      warn "DEBUG current_player_position: using fallback @current_position=#{@current_position.inspect}"
-      @current_position
+      # Final fallback to default position
+      warn "DEBUG current_player_position: no position available, returning nil"
+      nil
     end
 
     def other_players
