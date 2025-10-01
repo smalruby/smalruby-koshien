@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-game_map = GameMap.find_by(name: '2024サンプルマップ1')
+game_map = GameMap.find_by(name: "2024サンプルマップ1")
 
 # Simulate initialize_players for round 1
 start_positions = []
@@ -17,12 +17,12 @@ puts "  Found: #{start_positions.inspect}"
 puts ""
 
 # Create a test game to see actual behavior
-player_ai = PlayerAi.find_by(name: 'goal')
+player_ai = PlayerAi.find_by(name: "goal")
 game = Game.create!(
   first_player_ai: player_ai,
   second_player_ai: player_ai,
   game_map: game_map,
-  battle_url: 'test-start-pos-debug',
+  battle_url: "test-start-pos-debug",
   status: :in_progress
 )
 
@@ -48,7 +48,7 @@ puts "  Start positions: #{test_start_positions.inspect}"
 
 [game.first_player_ai, game.second_player_ai].each_with_index do |ai, index|
   position = test_start_positions[index]
-  puts "  Player #{index+1} (#{ai.name}, ID: #{ai.id}): position #{position.inspect}"
+  puts "  Player #{index + 1} (#{ai.name}, ID: #{ai.id}): position #{position.inspect}"
 
   round.players.create!(
     player_ai: ai,
@@ -71,7 +71,7 @@ end
 puts ""
 puts "Created players:"
 round.players.order(:id).each_with_index do |p, i|
-  puts "  Player #{i+1}: (#{p.position_x}, #{p.position_y})"
+  puts "  Player #{i + 1}: (#{p.position_x}, #{p.position_y})"
 end
 
 game.destroy
