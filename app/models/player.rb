@@ -125,10 +125,15 @@ class Player < ApplicationRecord
     [position_x, position_y] == [enemy_info[:x].to_i, enemy_info[:y].to_i]
   end
 
-  def update_my_map(rng_x, rng_y, map_snapshot)
+  def update_my_map!(rng_x, rng_y, map_snapshot)
     # Update player's personal map with snapshot data for the specified range
-    current_my_map = my_map.dup
-    current_map_fov = map_fov.dup
+    # Deep clone to ensure Rails detects changes
+    current_my_map = my_map.map(&:dup)
+    current_map_fov = map_fov.map(&:dup)
+
+    Rails.logger.info "🗺️ Updating my_map for player #{id} at range x=#{rng_x.inspect}, y=#{rng_y.inspect}"
+    Rails.logger.info "🗺️ Map snapshot: #{map_snapshot.inspect}"
+    Rails.logger.info "🗺️ Before: my_map[#{rng_y.first}][#{rng_x.first}] = #{current_my_map[rng_y.first][rng_x.first]}"
 
     rng_y.each_with_index do |my_map_y, y_pos|
       rng_x.each_with_index do |my_map_x, x_pos|
@@ -145,6 +150,10 @@ class Player < ApplicationRecord
 
     self.my_map = current_my_map
     self.map_fov = current_map_fov
+
+    save!
+
+    Rails.logger.info "🗺️ After save: my_map[#{rng_y.first}][#{rng_x.first}] = #{my_map[rng_y.first][rng_x.first]}"
   end
 
   def api_info

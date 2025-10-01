@@ -234,6 +234,8 @@ class GameEngine
         end
 
         # Start turn
+        # Reload player to get latest position/state after previous player's actions
+        player.reload
         turn_data = build_turn_data(player, turn.turn_number)
         unless ai_manager.start_turn(**turn_data)
           raise "Failed to start AI turn for player #{player.id}"

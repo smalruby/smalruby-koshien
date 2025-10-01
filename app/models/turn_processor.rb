@@ -138,21 +138,28 @@ class TurnProcessor
   def process_move_to_target(player, target_x, target_y)
     old_x, old_y = player.position_x, player.position_y
 
+    Rails.logger.info "  🎯 process_move_to_target: from (#{old_x},#{old_y}) to target (#{target_x},#{target_y})"
+
     # Calculate direction to target (only allow one step movement)
     dx = target_x - old_x
     dy = target_y - old_y
+
+    Rails.logger.info "  🎯 Delta: dx=#{dx}, dy=#{dy}"
 
     # Normalize to single step
     if dx.abs > dy.abs
       new_x = old_x + ((dx > 0) ? 1 : -1)
       new_y = old_y
+      Rails.logger.info "  🎯 Moving in X direction: (#{old_x},#{old_y}) → (#{new_x},#{new_y})"
     elsif dy != 0
       new_x = old_x
       new_y = old_y + ((dy > 0) ? 1 : -1)
+      Rails.logger.info "  🎯 Moving in Y direction: (#{old_x},#{old_y}) → (#{new_x},#{new_y})"
     else
       # Already at target
       new_x = old_x
       new_y = old_y
+      Rails.logger.info "  🎯 Already at target"
     end
 
     # Check if movement is valid

@@ -289,11 +289,15 @@ module Smalruby3
         # Minimal stub for testing
         log("Move to: #{position}")
       elsif in_json_mode?
+        warn "🎯 move_to called with: #{position.inspect} (class: #{position.class})"
         if position.is_a?(String) && position.include?(":")
           x, y = position.split(":").map(&:to_i)
+          warn "🎯 Parsed coordinates: (#{x}, #{y})"
           add_action({action_type: "move", target_x: x, target_y: y})
           # Track the intended movement for fallback position tracking
           track_movement_action(x, y)
+        else
+          warn "🎯 Invalid position format: #{position.inspect}"
         end
       else
         # Original stub behavior
@@ -409,19 +413,27 @@ module Smalruby3
       if in_test_env?
         log("Turn over")
       elsif in_json_mode?
-        # Check for queued turn_start from previous turn_over
-        # But don't clear actions yet - we need them for send_turn_over
-        queued_turn_start = @message_queue.find { |msg| msg["type"] == "turn_start" }
-        if queued_turn_start
-          @message_queue.delete(queued_turn_start)
-          # Update turn data but don't clear actions yet
-          update_turn_data(queued_turn_start["data"])
-        end
+        warn "🔄 turn_over: called, queue size=#{@message_queue.length}, actions=#{@actions.length}"
 
         send_turn_over
         # Clear actions AFTER sending them
         clear_actions
-        wait_for_turn_completion
+        warn "🔄 turn_over: calling wait_for_turn_completion"
+        result = wait_for_turn_completion
+        warn "🔄 turn_over: wait_for_turn_completion returned #{result}"
+
+        # Process queued turn_start AFTER waiting for turn completion
+        # This ensures turn data is updated for the NEXT iteration
+        queued_turn_start = @message_queue.find { |msg| msg["type"] == "turn_start" }
+        if queued_turn_start
+          warn "🔄 turn_over: found queued turn_start after wait, processing it for next turn"
+          @message_queue.delete(queued_turn_start)
+          update_turn_data(queued_turn_start["data"])
+        else
+          warn "🔄 turn_over: no queued turn_start found after wait"
+        end
+
+        result
       else
         log("Turn over")
       end
@@ -513,6 +525,8 @@ module Smalruby3
       src_coords = parse_position_string(src)
       dst_coords = parse_position_string(dst)
 
+      warn "🗺️ calc_route: src=#{src_coords.inspect} dst=#{dst_coords.inspect}"
+
       if in_test_env?
         # Simple stub for testing - return direct path
         route = [[src_coords[0], src_coords[1]], [dst_coords[0], dst_coords[1]]]
@@ -521,6 +535,13 @@ module Smalruby3
         map_data = build_map_data_from_game_state
         except_cells_array = except_cells || []
 
+        warn "🗺️ map_data size: #{map_data.size}x#{begin
+          map_data.first&.size
+        rescue
+          "nil"
+        end}"
+        warn "🗺️ except_cells: #{except_cells_array.inspect}"
+
         # Build graph data for pathfinding
         graph_data = make_data(map_data, except_cells_array)
         graph = DijkstraSearch::Graph.new(graph_data)
@@ -528,7 +549,9 @@ module Smalruby3
         # Calculate route
         src_id = "m#{src_coords[0]}_#{src_coords[1]}"
         dst_id = "m#{dst_coords[0]}_#{dst_coords[1]}"
+        warn "🗺️ Finding route from #{src_id} to #{dst_id}"
         route = graph.get_route(src_id, dst_id)
+        warn "🗺️ Route found: #{route.inspect}"
       else
         # Fallback - simple direct path
         route = [[src_coords[0], src_coords[1]], [dst_coords[0], dst_coords[1]]]
@@ -536,6 +559,7 @@ module Smalruby3
 
       # Convert route to position strings and update result list
       result.replace(route.map { |coords| "#{coords[0]}:#{coords[1]}" })
+      warn "🗺️ Result list: #{result.inspect}"
       result
     end
 
@@ -1183,6 +1207,7 @@ module Smalruby3
 
     def add_action(action)
       @actions << action
+      warn "➕ Action added: #{action.inspect}, total actions: #{@actions.length}"
     end
 
     def clear_actions
@@ -1219,19 +1244,31 @@ module Smalruby3
       warn "DEBUG: sending map area request: #{request_message.inspect}"
       send_message(request_message)
 
-      # Wait for response
+      # Wait for response, queuing any turn_start messages that arrive
       warn "DEBUG: waiting for map area response..."
-      response = read_message
-      warn "DEBUG: received response: #{response.inspect}"
+      loop do
+        response = read_message
+        warn "DEBUG: received response: #{response.inspect}"
 
-      if response && response["type"] == "map_area_response"
-        warn "DEBUG: got valid map_area_response"
-        response["data"]
-      else
-        warn "ERROR: Failed to get map area response: #{response.inspect}"
-        # If not a map_area_response, queue it for later processing
-        @message_queue << response if response
-        nil
+        case response&.dig("type")
+        when "map_area_response"
+          warn "DEBUG: got valid map_area_response"
+          return response["data"]
+        when "turn_start"
+          # Only keep the latest turn_start - discard any old ones
+          warn "DEBUG: received turn_start while waiting for map area"
+          @message_queue.reject! { |msg| msg["type"] == "turn_start" }
+          @message_queue << response
+          warn "DEBUG: replaced any old turn_start in queue (queue size now: #{@message_queue.length})"
+          # Continue waiting for map_area_response
+        when nil
+          warn "ERROR: No response received for map area request"
+          return nil
+        else
+          warn "ERROR: Unexpected message type while waiting for map area: #{response["type"]}"
+          # Queue other messages and continue waiting
+          @message_queue << response if response
+        end
       end
     end
 
@@ -1365,6 +1402,7 @@ module Smalruby3
 
     def send_turn_over
       actions = get_actions
+      warn "📤 Sending turn_over with #{actions.length} actions: #{actions.inspect}"
       send_message({
         type: "turn_over",
         timestamp: Time.now.utc.iso8601,
@@ -1375,23 +1413,31 @@ module Smalruby3
     end
 
     def wait_for_turn_completion
+      warn "🔄 wait_for_turn_completion: starting, queue size=#{@message_queue.length}"
       loop do
         message = read_message
+        warn "🔄 wait_for_turn_completion: received message type=#{message&.dig("type")}"
         return false unless message
 
         case message["type"]
         when "turn_end_confirm"
+          warn "🔄 wait_for_turn_completion: received turn_end_confirm, returning true"
           handle_turn_end_confirm(message["data"])
           return true
         when "game_end"
+          warn "🔄 wait_for_turn_completion: received game_end, exiting"
           handle_game_end(message["data"])
           exit(0)
         when "turn_start"
-          # Queue turn_start - it will be processed at start of next turn_over
-          # This prevents sending turn_over twice before engine processes first one
+          # Only keep the latest turn_start - discard any old ones
+          # This prevents accumulating stale turn_start messages
+          warn "🔄 wait_for_turn_completion: received turn_start"
+          @message_queue.reject! { |msg| msg["type"] == "turn_start" }
           @message_queue << message
+          warn "🔄 wait_for_turn_completion: replaced any old turn_start in queue (queue size now: #{@message_queue.length})"
           # Continue waiting for turn_end_confirm
         else
+          warn "🔄 wait_for_turn_completion: unexpected message type #{message["type"]}, returning false"
           send_error_message("Unexpected message type during turn completion: #{message["type"]}")
           return false
         end

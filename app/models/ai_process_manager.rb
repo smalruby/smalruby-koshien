@@ -155,6 +155,7 @@ class AiProcessManager
         actions = message.dig("data", "actions") || []
         @status = :turn_completed
         Rails.logger.info "AI Process [PID=#{@process_pid}] turn completed: actions=#{actions.length}, status=#{@status}"
+        Rails.logger.info "🔍 Actions received: #{actions.inspect}"
         return {success: true, actions: actions}
       when "debug"
         Rails.logger.debug "AI Debug [PID=#{@process_pid}]: #{message.dig("data", "message")}"
@@ -429,8 +430,7 @@ class AiProcessManager
     end
 
     # Update player's personal map with this snapshot
-    player.update_my_map(rng_x, rng_y, map_snapshot)
-    player.save!
+    player.update_my_map!(rng_x, rng_y, map_snapshot)
 
     # Check for other player in range
     other_players = game_round.players.where.not(id: player.id)
