@@ -379,21 +379,24 @@ class GameEngine
   end
 
   def finalize_round
-    @current_round.update!(status: :finished)
-
     # Apply final bonuses and calculate scores
     @current_round.players.each do |player|
       player.update_character_level
       apply_final_bonuses(player)
     end
+
+    # Determine and save round winner
+    winner = determine_round_winner
+    @current_round.update!(status: :finished, winner: winner)
   end
 
   def determine_round_winner
-    players = @current_round.players.order(:score).reverse
+    players = @current_round.players.order(:id)
     return :draw if players[0].score == players[1].score
 
-    winner_player = players.first
-    (game.first_player_ai == winner_player.player_ai) ? :player1 : :player2
+    # Determine winner by score - players are ordered by creation (first_player, second_player)
+    winner_player = players.max_by(&:score)
+    (winner_player == players[0]) ? :player1 : :player2
   end
 
   def determine_overall_winner(round_results)
