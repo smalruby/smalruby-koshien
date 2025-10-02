@@ -239,6 +239,9 @@ module Smalruby3
           map_area_data = request_map_area(x, y)
           warn "DEBUG: received map area data: #{map_area_data.inspect}"
 
+          # Store the response for enemy and other_player methods
+          @last_map_area_response = map_area_data
+
           # Add exploration action for event logging
           add_action({action_type: "explore", target_position: {x: x, y: y}, area_size: 5})
           warn "DEBUG: added exploration action to queue"
@@ -840,8 +843,13 @@ module Smalruby3
       if in_test_env?
         # Minimal stub for testing
         nil
+      elsif in_json_mode?
+        # Return other_player position from last map_area response
+        if @last_map_area_response && @last_map_area_response[:other_player]
+          pos = @last_map_area_response[:other_player]
+          "#{pos[0]}:#{pos[1]}"
+        end
       else
-        # JSON mode only - implementation will be added during integration
         raise "Traditional mode not supported. Use JSON mode only."
       end
     end
@@ -865,8 +873,12 @@ module Smalruby3
       if in_test_env?
         # Minimal stub for testing
         nil
+      elsif in_json_mode?
+        # Return other_player x coordinate from last map_area response
+        if @last_map_area_response && @last_map_area_response[:other_player]
+          @last_map_area_response[:other_player][0]
+        end
       else
-        # JSON mode only - implementation will be added during integration
         raise "Traditional mode not supported. Use JSON mode only."
       end
     end
@@ -890,8 +902,12 @@ module Smalruby3
       if in_test_env?
         # Minimal stub for testing
         nil
+      elsif in_json_mode?
+        # Return other_player y coordinate from last map_area response
+        if @last_map_area_response && @last_map_area_response[:other_player]
+          @last_map_area_response[:other_player][1]
+        end
       else
-        # JSON mode only - implementation will be added during integration
         raise "Traditional mode not supported. Use JSON mode only."
       end
     end
@@ -913,8 +929,14 @@ module Smalruby3
       if in_test_env?
         # Minimal stub for testing
         nil
+      elsif in_json_mode?
+        # Return enemy position from current turn data
+        enemies = @current_turn_data&.dig("enemies") || []
+        enemy_data = enemies.first
+        if enemy_data && enemy_data["x"] && enemy_data["y"]
+          "#{enemy_data["x"]}:#{enemy_data["y"]}"
+        end
       else
-        # JSON mode only - implementation will be added during integration
         raise "Traditional mode not supported. Use JSON mode only."
       end
     end
@@ -936,8 +958,11 @@ module Smalruby3
       if in_test_env?
         # Minimal stub for testing
         nil
+      elsif in_json_mode?
+        # Return enemy x coordinate from current turn data
+        enemies = @current_turn_data&.dig("enemies") || []
+        enemies.first&.dig("x")
       else
-        # JSON mode only - implementation will be added during integration
         raise "Traditional mode not supported. Use JSON mode only."
       end
     end
@@ -959,8 +984,11 @@ module Smalruby3
       if in_test_env?
         # Minimal stub for testing
         nil
+      elsif in_json_mode?
+        # Return enemy y coordinate from current turn data
+        enemies = @current_turn_data&.dig("enemies") || []
+        enemies.first&.dig("y")
       else
-        # JSON mode only - implementation will be added during integration
         raise "Traditional mode not supported. Use JSON mode only."
       end
     end
