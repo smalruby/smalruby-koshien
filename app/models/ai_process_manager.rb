@@ -419,12 +419,17 @@ class AiProcessManager
       map_snapshot << row[rng_x].dup
     end
 
-    # Overlay items from items_data (ITEM_MARKS mapping)
+    # Overlay items from items_data
+    # Items are stored in items_data with codes 1-9:
+    # - Codes 1-5: Positive items (a-e) - tea, sweets, COIN, dolphin, sword
+    # - Codes 6-9: Negative items (A-D) - poison, snake, trap, bomb
+    # Convert to string marks for compatibility with koshien.rb case statements
+    item_marks = [nil, "a", "b", "c", "d", "e", "A", "B", "C", "D"]
     items_data[rng_y].each_with_index do |row, y_pos|
       row[rng_x].each_with_index do |item_idx, x_pos|
         if item_idx.to_i != 0  # Not ITEM_BLANK_INDEX
-          # Map item indices to marks (4-9 for items 1-6)
-          map_snapshot[y_pos][x_pos] = item_idx + 3 if item_idx.between?(1, 6)
+          # Convert item codes to string marks (1→"a", 2→"b", ..., 9→"D")
+          map_snapshot[y_pos][x_pos] = item_marks[item_idx] if item_idx.between?(1, 9)
         end
       end
     end

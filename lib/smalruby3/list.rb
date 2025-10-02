@@ -57,6 +57,10 @@ module Smalruby3
       @array.map(&block)
     end
 
+    def each(&block)
+      @array.each(&block)
+    end
+
     def to_s
       @array.map(&:to_s).join
     end
