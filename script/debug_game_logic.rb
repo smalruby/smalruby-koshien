@@ -185,7 +185,9 @@ class GameLogicDebugger
       puts "   Status: #{round.status}"
       puts "   Winner: #{round.winner || "No winner"}"
       puts "   Players: #{round.players.count}"
-      puts "   Turns: #{round.game_turns.count}"
+      # Exclude turn 0 (initial snapshot) from turn count
+      actual_turns = round.game_turns.where("turn_number > 0").count
+      puts "   Turns: #{actual_turns}"
       puts "   Enemies: #{round.enemies.count}"
 
       # Player analysis
@@ -218,32 +220,33 @@ class GameLogicDebugger
       # Turn analysis (show first few and last few)
       turns = round.game_turns.order(:turn_number)
       puts "\n   🎯 Turn Summary:"
-      puts "      Total turns: #{turns.count}"
+      puts "      Total turns: #{turns.count} (including turn 0 initial snapshot)"
       if turns.any?
-        puts "      First turn: #{turns.first.turn_number}"
-        puts "      Last turn: #{turns.last.turn_number}"
+        puts "      Turn range: #{turns.first.turn_number}-#{turns.last.turn_number}"
+        puts "      Game turns executed: #{[turns.last.turn_number, 0].max}"
         puts "      All finished: #{turns.all?(&:turn_finished?)}"
       end
 
-      # Detailed turn-by-turn analysis in verbose mode
+      # Detailed turn-by-turn analysis using snapshots
       if @options[:verbose] && turns.any?
-        puts "\n   📍 Turn-by-Turn Movement Analysis:"
-        turns.limit(10).each do |turn|
-          turn_players = turn.players.includes(:player_ai)
-          turn_players.each do |player|
-            ai_name = player.player_ai.name.split(" - ").last
-            puts "      Turn #{turn.turn_number} - #{ai_name}: (#{player.position_x}, #{player.position_y})"
-          end
-        end
-        if turns.count > 10
-          puts "      ... (#{turns.count - 10} more turns) ..."
-          last_turns = turns.last(5)
-          last_turns.each do |turn|
-            turn_players = turn.players.includes(:player_ai)
-            turn_players.each do |player|
-              ai_name = player.player_ai.name.split(" - ").last
-              puts "      Turn #{turn.turn_number} - #{ai_name}: (#{player.position_x}, #{player.position_y})"
+        puts "\n   📍 Turn-by-Turn Position and Score History:"
+
+        # Get player names
+        first_turn = turns.first
+        snapshots = first_turn.player_snapshots.includes(player: :player_ai).order("players.id")
+        player_names = snapshots.map { |s| s.player.player_ai.name.split(" - ").last }
+
+        # Display all turns in compact format
+        turns.each do |turn|
+          turn_snapshots = turn.player_snapshots.includes(player: :player_ai).order("players.id")
+          if turn_snapshots.any?
+            turn_data = turn_snapshots.map do |snapshot|
+              pos = "(#{snapshot.position_x},#{snapshot.position_y})"
+              score = snapshot.score
+              "#{pos} score:#{score}"
             end
+
+            puts "      Turn #{turn.turn_number.to_s.rjust(2)}: #{player_names[0]}: #{turn_data[0]} | #{player_names[1]}: #{turn_data[1]}"
           end
         end
       end
