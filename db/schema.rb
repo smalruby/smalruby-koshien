@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_30_234416) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_02_144911) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -122,6 +122,33 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_30_234416) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "player_snapshots", force: :cascade do |t|
+    t.integer "game_turn_id", null: false
+    t.integer "player_id", null: false
+    t.integer "position_x"
+    t.integer "position_y"
+    t.integer "previous_position_x"
+    t.integer "previous_position_y"
+    t.integer "score"
+    t.integer "status"
+    t.boolean "has_goal_bonus"
+    t.boolean "in_water"
+    t.boolean "movable"
+    t.integer "dynamite_left"
+    t.integer "character_level"
+    t.boolean "walk_bonus"
+    t.integer "bomb_left"
+    t.integer "walk_bonus_counter"
+    t.json "acquired_positive_items"
+    t.text "my_map"
+    t.text "map_fov"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_turn_id", "player_id"], name: "index_player_snapshots_on_game_turn_id_and_player_id", unique: true
+    t.index ["game_turn_id"], name: "index_player_snapshots_on_game_turn_id"
+    t.index ["player_id"], name: "index_player_snapshots_on_player_id"
+  end
+
   create_table "players", force: :cascade do |t|
     t.integer "game_round_id", null: false
     t.integer "player_ai_id", null: false
@@ -158,6 +185,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_30_234416) do
   add_foreign_key "games", "game_maps"
   add_foreign_key "games", "player_ais", column: "first_player_ai_id"
   add_foreign_key "games", "player_ais", column: "second_player_ai_id"
+  add_foreign_key "player_snapshots", "game_turns"
+  add_foreign_key "player_snapshots", "players"
   add_foreign_key "players", "game_rounds"
   add_foreign_key "players", "player_ais"
 end

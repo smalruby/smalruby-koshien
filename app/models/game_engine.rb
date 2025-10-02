@@ -110,6 +110,13 @@ class GameEngine
     # Initialize enemies
     initialize_enemies(round)
 
+    # Create turn 0 for initial state snapshot
+    turn_0 = round.game_turns.create!(
+      turn_number: 0,
+      turn_finished: true
+    )
+    create_player_snapshots(turn_0)
+
     # Set round status to in_progress
     round.update!(status: :in_progress)
 
@@ -193,6 +200,9 @@ class GameEngine
 
       # Mark turn as finished
       turn.update!(turn_finished: true)
+
+      # Create snapshots after turn completion
+      create_player_snapshots(turn)
 
       {
         turn_number: turn_number,
@@ -696,5 +706,35 @@ class GameEngine
     end
 
     @ai_managers.clear
+  end
+
+  def create_player_snapshots(turn)
+    round = turn.game_round
+    round.players.each do |player|
+      player.reload  # Get latest state
+
+      turn.player_snapshots.create!(
+        player: player,
+        position_x: player.position_x,
+        position_y: player.position_y,
+        previous_position_x: player.previous_position_x,
+        previous_position_y: player.previous_position_y,
+        score: player.score,
+        status: player.status,
+        has_goal_bonus: player.has_goal_bonus,
+        in_water: player.in_water,
+        movable: player.movable,
+        dynamite_left: player.dynamite_left,
+        character_level: player.character_level,
+        walk_bonus: player.walk_bonus,
+        bomb_left: player.bomb_left,
+        walk_bonus_counter: player.walk_bonus_counter,
+        acquired_positive_items: player.acquired_positive_items,
+        my_map: player.my_map,
+        map_fov: player.map_fov
+      )
+    end
+
+    Rails.logger.debug "Created player snapshots for turn #{turn.turn_number}"
   end
 end

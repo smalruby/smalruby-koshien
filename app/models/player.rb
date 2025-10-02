@@ -3,6 +3,7 @@ class Player < ApplicationRecord
 
   belongs_to :game_round
   belongs_to :player_ai
+  has_many :player_snapshots, dependent: :destroy
 
   validates :position_x, presence: true, numericality: {greater_than_or_equal_to: 0}
   validates :position_y, presence: true, numericality: {greater_than_or_equal_to: 0}
