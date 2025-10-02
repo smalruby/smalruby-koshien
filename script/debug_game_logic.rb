@@ -185,7 +185,9 @@ class GameLogicDebugger
       puts "   Status: #{round.status}"
       puts "   Winner: #{round.winner || "No winner"}"
       puts "   Players: #{round.players.count}"
-      puts "   Turns: #{round.game_turns.count}"
+      # Exclude turn 0 (initial snapshot) from turn count
+      actual_turns = round.game_turns.where("turn_number > 0").count
+      puts "   Turns: #{actual_turns}"
       puts "   Enemies: #{round.enemies.count}"
 
       # Player analysis
@@ -218,10 +220,10 @@ class GameLogicDebugger
       # Turn analysis (show first few and last few)
       turns = round.game_turns.order(:turn_number)
       puts "\n   🎯 Turn Summary:"
-      puts "      Total turns: #{turns.count}"
+      puts "      Total turns: #{turns.count} (including turn 0 initial snapshot)"
       if turns.any?
-        puts "      First turn: #{turns.first.turn_number}"
-        puts "      Last turn: #{turns.last.turn_number}"
+        puts "      Turn range: #{turns.first.turn_number}-#{turns.last.turn_number}"
+        puts "      Game turns executed: #{[turns.last.turn_number, 0].max}"
         puts "      All finished: #{turns.all?(&:turn_finished?)}"
       end
 
