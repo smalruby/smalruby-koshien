@@ -229,41 +229,24 @@ class GameLogicDebugger
 
       # Detailed turn-by-turn analysis using snapshots
       if @options[:verbose] && turns.any?
-        puts "\n   📍 Turn-by-Turn Snapshot Analysis:"
-        # Show first 10 turns
-        turns.limit(10).each do |turn|
-          snapshots = turn.player_snapshots.includes(player: :player_ai).order("players.id")
-          if snapshots.any?
-            snapshots.each do |snapshot|
-              ai_name = snapshot.player.player_ai.name.split(" - ").last
-              items_display = snapshot.acquired_positive_items.is_a?(Array) ?
-                snapshot.acquired_positive_items[1..5].join(",") : "N/A"
-              puts "      Turn #{turn.turn_number} - #{ai_name}:"
-              puts "         Position: (#{snapshot.position_x}, #{snapshot.position_y})"
-              puts "         Score: #{snapshot.score}"
-              puts "         Items: [#{items_display}]"
-              puts "         Level: #{snapshot.character_level}"
+        puts "\n   📍 Turn-by-Turn Position and Score History:"
+
+        # Get player names
+        first_turn = turns.first
+        snapshots = first_turn.player_snapshots.includes(player: :player_ai).order("players.id")
+        player_names = snapshots.map { |s| s.player.player_ai.name.split(" - ").last }
+
+        # Display all turns in compact format
+        turns.each do |turn|
+          turn_snapshots = turn.player_snapshots.includes(player: :player_ai).order("players.id")
+          if turn_snapshots.any?
+            turn_data = turn_snapshots.map do |snapshot|
+              pos = "(#{snapshot.position_x},#{snapshot.position_y})"
+              score = snapshot.score
+              "#{pos} score:#{score}"
             end
-          end
-        end
-        if turns.count > 10
-          puts "      ... (#{turns.count - 10} more turns) ..."
-          # Show last 5 turns
-          last_turns = turns.last(5)
-          last_turns.each do |turn|
-            snapshots = turn.player_snapshots.includes(player: :player_ai).order("players.id")
-            if snapshots.any?
-              snapshots.each do |snapshot|
-                ai_name = snapshot.player.player_ai.name.split(" - ").last
-                items_display = snapshot.acquired_positive_items.is_a?(Array) ?
-                  snapshot.acquired_positive_items[1..5].join(",") : "N/A"
-                puts "      Turn #{turn.turn_number} - #{ai_name}:"
-                puts "         Position: (#{snapshot.position_x}, #{snapshot.position_y})"
-                puts "         Score: #{snapshot.score}"
-                puts "         Items: [#{items_display}]"
-                puts "         Level: #{snapshot.character_level}"
-              end
-            end
+
+            puts "      Turn #{turn.turn_number.to_s.rjust(2)}: #{player_names[0]}: #{turn_data[0]} | #{player_names[1]}: #{turn_data[1]}"
           end
         end
       end
