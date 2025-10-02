@@ -25,10 +25,15 @@ RSpec.describe GameTurn, type: :model do
       expect(game_turn.errors[:turn_number]).to include("can't be blank")
     end
 
-    it "turn_numberが正数である" do
-      game_turn.turn_number = 0
+    it "turn_numberが0以上である" do
+      game_turn.turn_number = -1
       expect(game_turn).not_to be_valid
-      expect(game_turn.errors[:turn_number]).to include("must be greater than 0")
+      expect(game_turn.errors[:turn_number]).to include("must be greater than or equal to 0")
+    end
+
+    it "turn_number 0は有効である（初期スナップショット用）" do
+      game_turn.turn_number = 0
+      expect(game_turn).to be_valid
     end
 
     it "turn_finishedがブール値である" do
