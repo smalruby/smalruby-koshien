@@ -7,31 +7,27 @@ RSpec.describe PlayerSnapshot, type: :model do
   let(:player) { create(:player, game_round: game_round) }
 
   describe "associations" do
-    it "belongs to game_turn" do
-      snapshot = build(:player_snapshot, game_turn: game_turn, player: player)
-      expect(snapshot.game_turn).to eq(game_turn)
-    end
-
-    it "belongs to player" do
-      snapshot = build(:player_snapshot, game_turn: game_turn, player: player)
-      expect(snapshot.player).to eq(player)
-    end
+    it { should belong_to(:game_turn) }
+    it { should belong_to(:player) }
   end
 
   describe "validations" do
-    it "validates presence of required fields" do
-      snapshot = PlayerSnapshot.new
-      expect(snapshot).not_to be_valid
-      expect(snapshot.errors[:position_x]).to include("can't be blank")
-      expect(snapshot.errors[:position_y]).to include("can't be blank")
-      expect(snapshot.errors[:score]).to include("can't be blank")
-    end
+    subject { build(:player_snapshot, game_turn: game_turn, player: player) }
 
-    it "validates numericality of position fields" do
-      snapshot = build(:player_snapshot, position_x: -1)
-      expect(snapshot).not_to be_valid
-      expect(snapshot.errors[:position_x]).to include("must be greater than or equal to 0")
-    end
+    it { should validate_presence_of(:position_x) }
+    it { should validate_presence_of(:position_y) }
+    it { should validate_presence_of(:score) }
+    it { should validate_presence_of(:dynamite_left) }
+    it { should validate_presence_of(:bomb_left) }
+    it { should validate_presence_of(:character_level) }
+    it { should validate_presence_of(:walk_bonus_counter) }
+
+    it { should validate_numericality_of(:position_x).is_greater_than_or_equal_to(0) }
+    it { should validate_numericality_of(:position_y).is_greater_than_or_equal_to(0) }
+    it { should validate_numericality_of(:dynamite_left).is_greater_than_or_equal_to(0) }
+    it { should validate_numericality_of(:bomb_left).is_greater_than_or_equal_to(0) }
+    it { should validate_numericality_of(:character_level).is_greater_than_or_equal_to(1) }
+    it { should validate_numericality_of(:walk_bonus_counter).is_greater_than_or_equal_to(0) }
   end
 
   describe "serialization" do
@@ -47,13 +43,7 @@ RSpec.describe PlayerSnapshot, type: :model do
   end
 
   describe "enum" do
-    it "defines status enum" do
-      snapshot = build(:player_snapshot)
-      expect(snapshot).to respond_to(:playing?)
-      expect(snapshot).to respond_to(:completed?)
-      expect(snapshot).to respond_to(:timeout?)
-      expect(snapshot).to respond_to(:timeup?)
-    end
+    it { should define_enum_for(:status).with_values(playing: 0, completed: 1, timeout: 2, timeup: 3) }
   end
 
   describe "#position" do
