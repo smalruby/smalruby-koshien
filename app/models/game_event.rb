@@ -44,6 +44,8 @@ class GameEvent < ApplicationRecord
   SET_BOMB_FAILED = "SET_BOMB_FAILED".freeze
   EXPLOSION = "EXPLOSION".freeze
   WALL_DESTROYED = "WALL_DESTROYED".freeze
+  ENTER_WATER = "ENTER_WATER".freeze
+  STUCK_IN_WATER = "STUCK_IN_WATER".freeze
 
   EVENT_TYPES = [
     PLAYER_MOVE,
@@ -69,7 +71,9 @@ class GameEvent < ApplicationRecord
     SET_BOMB,
     SET_BOMB_FAILED,
     EXPLOSION,
-    WALL_DESTROYED
+    WALL_DESTROYED,
+    ENTER_WATER,
+    STUCK_IN_WATER
   ].freeze
 
   validates :event_type, inclusion: {in: EVENT_TYPES}
