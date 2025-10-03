@@ -26,7 +26,7 @@ Sprite.new(
 
   @turn_count = 0
 
-  koshien.connect_game
+  koshien.connect_game(name: "player")
 
   koshien.set_message("移動開始")
 

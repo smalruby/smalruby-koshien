@@ -24,7 +24,7 @@ Sprite.new(
   @turn_count = 0
   @bomb_placed = false
 
-  koshien.connect_game
+  koshien.connect_game(name: "bomb")
 
   # Get goal position
   @goal_x = koshien.goal_x

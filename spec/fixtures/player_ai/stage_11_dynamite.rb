@@ -23,8 +23,9 @@ Sprite.new(
 
   @turn_count = 0
   @dynamite_used = false
+  @dynamite_left = 2
 
-  koshien.connect_game
+  koshien.connect_game(name: "player")
 
   # Get goal position
   @goal_x = koshien.goal_x
@@ -60,7 +61,7 @@ Sprite.new(
     koshien.get_map_area("#{@center_x}:#{@center_y}")
 
     # Check if we should use dynamite to break walls towards goal
-    if !@dynamite_used && koshien.dynamite_left > 0
+    if !@dynamite_used && @dynamite_left > 0
       # Check positions towards goal for breakable walls
       @dx = @goal_x - @my_x
       @dy = @goal_y - @my_y
@@ -78,13 +79,14 @@ Sprite.new(
 
       # Get map info at check position
       koshien.get_map_area("#{@check_x}:#{@check_y}")
-      @cell_value = koshien.map_at(@check_x, @check_y)
+      @cell_value = koshien.map("#{@check_x}:#{@check_y}")
 
       # If there's a breakable wall (value 5), use dynamite
       if @cell_value == 5
         koshien.set_message("壁を破壊してゴールへの経路を確保")
         koshien.set_dynamite("#{@check_x}:#{@check_y}")
         @dynamite_used = true
+        @dynamite_left -= 1
 
         # Re-explore the area after setting dynamite
         koshien.get_map_area("#{@check_x}:#{@check_y}")
