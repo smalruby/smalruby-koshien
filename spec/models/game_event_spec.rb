@@ -132,7 +132,8 @@ RSpec.describe GameEvent, type: :model do
         GameEvent::EXPLOSION,
         GameEvent::WALL_DESTROYED,
         GameEvent::ENTER_WATER,
-        GameEvent::STUCK_IN_WATER
+        GameEvent::STUCK_IN_WATER,
+        GameEvent::GOAL_REACHED
       ]
       expect(GameEvent::EVENT_TYPES).to eq(expected_types)
     end

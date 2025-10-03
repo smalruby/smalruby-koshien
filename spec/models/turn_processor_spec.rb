@@ -20,7 +20,8 @@ RSpec.describe TurnProcessor, type: :model do
       bomb_left: 2,
       walk_bonus_counter: 0,
       acquired_positive_items: [0, 0, 0, 0, 0, 0],
-      status: :playing
+      status: :playing,
+      has_goal_bonus: false
     )
   end
   let!(:player2) do
@@ -36,7 +37,8 @@ RSpec.describe TurnProcessor, type: :model do
       bomb_left: 2,
       walk_bonus_counter: 0,
       acquired_positive_items: [0, 0, 0, 0, 0, 0],
-      status: :playing
+      status: :playing,
+      has_goal_bonus: false
     )
   end
   let(:turn_processor) { described_class.new(round, turn) }
