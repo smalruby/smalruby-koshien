@@ -162,6 +162,21 @@ class TurnProcessor
       Rails.logger.info "  🎯 Already at target"
     end
 
+    # Check if player can move (not stuck in water)
+    if player.in_water && player.movable == false
+      # Player is in water and cannot move this turn
+      create_game_event(player, "STUCK_IN_WATER", {
+        position: {x: old_x, y: old_y},
+        attempted: {x: new_x, y: new_y}
+      })
+      Rails.logger.debug "Player #{player.id} stuck in water at (#{old_x},#{old_y}), cannot move"
+
+      # Reset movable flag for next turn
+      player.movable = true
+      player.save!
+      return
+    end
+
     # Check if movement is valid
     if valid_movement?(new_x, new_y)
       # Update player position
@@ -173,6 +188,26 @@ class TurnProcessor
         to: {x: new_x, y: new_y},
         target: {x: target_x, y: target_y}
       })
+
+      # Check if player entered water
+      map_data = game_round.game.game_map.map_data
+      cell_value = map_data[new_y][new_x]
+      if cell_value == MAP_WATER
+        # Set in_water flag and disable movement for next turn
+        player.in_water = true
+        player.movable = false
+        player.save!
+
+        create_game_event(player, "ENTER_WATER", {
+          position: {x: new_x, y: new_y}
+        })
+        Rails.logger.debug "Player #{player.id} entered water at (#{new_x},#{new_y}), movement disabled for next turn"
+      else
+        # Not in water, reset flags
+        player.in_water = false
+        player.movable = true
+        player.save!
+      end
 
       Rails.logger.debug "Player #{player.id} moved from (#{old_x},#{old_y}) to (#{new_x},#{new_y}) toward target (#{target_x},#{target_y})"
     else
@@ -210,9 +245,9 @@ class TurnProcessor
     cell_value = map_data[y][x]
 
     case cell_value
-    when MAP_BLANK, MAP_GOAL
+    when MAP_BLANK, MAP_GOAL, MAP_WATER
       true
-    when MAP_WALL1, MAP_WALL2, MAP_WATER
+    when MAP_WALL1, MAP_WALL2
       false
     when MAP_BREAKABLE_WALL
       # Breakable walls can be moved through if destroyed
