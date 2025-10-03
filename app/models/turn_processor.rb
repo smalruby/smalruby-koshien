@@ -189,10 +189,28 @@ class TurnProcessor
         target: {x: target_x, y: target_y}
       })
 
-      # Check if player entered water
+      # Check if player reached goal
       map_data = game_round.game.game_map.map_data
       cell_value = map_data[new_y][new_x]
-      if cell_value == MAP_WATER
+      goal_pos = game_round.game.game_map.goal_position
+
+      if new_x == goal_pos["x"] && new_y == goal_pos["y"] && !player.has_goal_bonus
+        # Player reached goal for the first time - apply goal bonus immediately
+        # Goal bonus decreases by 10 points for every 10 turns
+        current_turn = game_turn.turn_number
+        goal_bonus = [100 - ((current_turn - 1) / 10) * 10, 0].max
+
+        player.has_goal_bonus = true
+        player.score += goal_bonus
+        player.save!
+
+        create_game_event(player, "GOAL_REACHED", {
+          position: {x: new_x, y: new_y},
+          turn: game_turn.turn_number,
+          bonus: goal_bonus
+        })
+        Rails.logger.info "Player #{player.id} reached goal at (#{new_x},#{new_y}) on turn #{game_turn.turn_number}, bonus: #{goal_bonus}"
+      elsif cell_value == MAP_WATER
         # Set in_water flag and disable movement for next turn
         player.in_water = true
         player.movable = false
@@ -583,9 +601,9 @@ class TurnProcessor
 
   def process_enemy_interactions
     enemies = game_round.enemies
-    players = game_round.players.where(status: :playing)
+    players = game_round.players.where(status: :playing).where(has_goal_bonus: false)
 
-    Rails.logger.debug "Processing enemy interactions for turn #{game_turn.turn_number}: #{enemies.count} enemies, #{players.count} playing players"
+    Rails.logger.debug "Processing enemy interactions for turn #{game_turn.turn_number}: #{enemies.count} enemies, #{players.count} playing players (excluding goaled players)"
 
     enemies.each do |enemy|
       next if enemy.killed?
@@ -635,7 +653,7 @@ class TurnProcessor
   end
 
   def update_player_scores
-    players = game_round.players.where(status: :playing)
+    players = game_round.players.where(status: :playing).where(has_goal_bonus: false)
 
     players.each do |player|
       # Apply walk bonus if player moved
