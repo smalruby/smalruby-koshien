@@ -1,11 +1,13 @@
 require "rails_helper"
 
 RSpec.describe TurnProcessor, type: :model do
-  let(:game_map) { create(:game_map, map_data: [
-    [0, 0, 0, 0, 0],
-    [0, 0, 4, 0, 0],  # Water at (2,1)
-    [0, 0, 0, 0, 3]   # Goal at (4,2)
-  ]) }
+  let(:game_map) {
+    create(:game_map, map_data: [
+      [0, 0, 0, 0, 0],
+      [0, 0, 4, 0, 0],  # Water at (2,1)
+      [0, 0, 0, 0, 3]   # Goal at (4,2)
+    ])
+  }
   let(:player_ai_1) { create(:player_ai) }
   let(:player_ai_2) { create(:player_ai) }
   let(:game) { create(:game, first_player_ai: player_ai_1, second_player_ai: player_ai_2, game_map: game_map) }
