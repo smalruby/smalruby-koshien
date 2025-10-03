@@ -345,7 +345,7 @@ module Smalruby3
         pos = position || player
         if pos.is_a?(String) && pos.include?(":")
           x, y = pos.split(":").map(&:to_i)
-          add_action({action_type: "use_item", item: "dynamite", position: {x: x, y: y}})
+          add_action({action_type: "set_dynamite", target_x: x, target_y: y})
         end
       else
         # Original stub behavior
