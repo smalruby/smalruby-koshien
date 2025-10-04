@@ -1440,6 +1440,13 @@ module Smalruby3
       @current_turn_data = data
       @current_turn = data["turn_number"]
 
+      # Debug: Check visible_map data when received
+      if data["visible_map"] && data["visible_map"]["map_data"]
+        explored = data["visible_map"]["map_data"].flatten.count { |v| v != -1 }
+        total = data["visible_map"]["map_data"].flatten.size
+        warn "🔄 update_turn_data Turn #{data["turn_number"]}: received visible_map with #{explored}/#{total} explored"
+      end
+
       # Update local position tracking when we receive turn data
       if data["current_player"]
         current_player = data["current_player"]
@@ -1576,12 +1583,24 @@ module Smalruby3
       # Extract real map data from visible_map if available
       if @current_turn_data && @current_turn_data["visible_map"] && @current_turn_data["visible_map"]["map_data"]
         # Use the actual map data from the game
-        @current_turn_data["visible_map"]["map_data"]
+        map_data = @current_turn_data["visible_map"]["map_data"]
+        # Debug: Check how many cells are explored
+        explored = map_data.flatten.count { |v| v != -1 }
+        total = map_data.flatten.size
+        warn "🗺️ Using visible_map: #{explored}/#{total} cells explored"
+        warn "🗺️ Sample cells: [0][0]=#{map_data[0][0]}, [1][1]=#{map_data[1][1]}, [2][15]=#{begin
+          map_data[15][2]
+        rescue
+          "N/A"
+        end}"
+        map_data
       elsif @game_state && @game_state["game_map"] && @game_state["game_map"]["map_data"]
         # Fallback to initial game map data
+        warn "🗺️ Using initial game_map (fallback)"
         @game_state["game_map"]["map_data"]
       else
         # Last resort: create a basic 20x20 map with open spaces
+        warn "🗺️ Using default 20x20 map (last resort)"
         Array.new(20) { Array.new(20, BLANK_CHIP[:index]) }
       end
     end
@@ -1608,6 +1627,9 @@ module Smalruby3
     end
 
     def make_data(map, except_cells)
+      # Create a deep copy of the map to avoid modifying the original
+      map_copy = map.map(&:dup)
+
       except_cells.each do |cell|
         # Skip nil cells
         next if cell.nil?
@@ -1618,17 +1640,17 @@ module Smalruby3
         else
           ex, ey = cell
         end
-        map[ey][ex] = WALL1_CHIP[:index] if map[ey] && map[ey][ex]
+        map_copy[ey][ex] = WALL1_CHIP[:index] if map_copy[ey] && map_copy[ey][ex]
       end
 
       data = {}
-      map.size.times do |y|
-        map.first.size.times do |x|
+      map_copy.size.times do |y|
+        map_copy.first.size.times do |x|
           res = []
           [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]].each do |dx, dy|
             next if dx < 0 || dy < 0
-            if map[dy] && map[dy][dx]
-              case map[dy][dx]
+            if map_copy[dy] && map_copy[dy][dx]
+              case map_copy[dy][dx]
               # 加点アイテムの扱い（通路）
               when "a".."e"
                 res << [BLANK_CHIP[:weight], "m#{dx}_#{dy}"]

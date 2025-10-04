@@ -41,6 +41,8 @@ class GameLogicDebugger
     puts "   Map: #{@options[:map] || "2024サンプルマップ1 (default)"}"
     puts "   Player 1: #{@options[:player1] || "ゴール優先AI (default)"}"
     puts "   Player 2: #{@options[:player2] || "アイテム優先AI (default)"}"
+    puts "   Rounds: #{@options[:rounds] || "2 (default)"}"
+    puts "   Turns: #{@options[:turns] || "50 (default)"}"
     puts "   Verbose: #{@options[:verbose] ? "enabled" : "disabled"}"
     puts
   end
@@ -143,8 +145,16 @@ class GameLogicDebugger
     puts "   AI 1: #{@first_player_ai.name}"
     puts "   AI 2: #{@second_player_ai.name}"
 
-    # Initialize game engine
-    game_engine = GameEngine.new(@game)
+    # Initialize game engine with optional max_rounds and max_turns
+    engine_options = {}
+    engine_options[:max_rounds] = @options[:rounds] if @options[:rounds]
+    engine_options[:max_turns] = @options[:turns] if @options[:turns]
+
+    if engine_options.any?
+      puts "   Debug options: rounds=#{engine_options[:max_rounds] || "default"}, turns=#{engine_options[:max_turns] || "default"}"
+    end
+
+    game_engine = GameEngine.new(@game, engine_options)
 
     # Execute battle
     start_time = Time.current
@@ -331,6 +341,14 @@ OptionParser.new do |opts|
     options[:verbose] = true
   end
 
+  opts.on("-r", "--rounds ROUNDS", Integer, "Number of rounds to play (default: 2)") do |rounds|
+    options[:rounds] = rounds
+  end
+
+  opts.on("-t", "--turns TURNS", Integer, "Number of turns per round (default: 50)") do |turns|
+    options[:turns] = turns
+  end
+
   opts.on("-l", "--list", "List available maps and AIs") do
     GameLogicDebugger.list_available_resources
     exit
@@ -343,6 +361,8 @@ OptionParser.new do |opts|
     puts "  #{$0} -m 1 -1 'ゴール優先AI' -2 2   # Use map ID 1, AI name, AI ID 2"
     puts "  #{$0} --list                       # Show available resources"
     puts "  #{$0} -v                           # Enable verbose output"
+    puts "  #{$0} -r 1 -t 9                    # Run 1 round with 9 turns only"
+    puts "  #{$0} -m '2024サンプルマップ2' -1 dynamite -2 dynamite -r 1 -t 9  # Debug specific scenario"
     puts
     puts "Available GameMaps and PlayerAIs can be listed with --list option."
     exit

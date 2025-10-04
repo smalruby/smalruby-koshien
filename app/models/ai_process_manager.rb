@@ -385,7 +385,8 @@ class AiProcessManager
     game_round = game.game_rounds.find_by(round_number: @round_number)
     return {} unless game_round
 
-    player = game_round.players.find_by(player_ai_id: @player_ai_id)
+    # Use player_index to find the correct player (not player_ai_id which may be same for both players)
+    player = game_round.players.order(:id)[@player_index]
     return {} unless player
 
     game_map = game_round.game.game_map
@@ -417,6 +418,14 @@ class AiProcessManager
     map_snapshot = []
     map_data[rng_y].each do |row|
       map_snapshot << row[rng_x].dup
+    end
+
+    # Debug: Check if goal is in this snapshot
+    goal_pos = game_map.goal_position
+    if goal_pos && rng_x.include?(goal_pos["x"]) && rng_y.include?(goal_pos["y"])
+      snap_y = rng_y.to_a.index(goal_pos["y"])
+      snap_x = rng_x.to_a.index(goal_pos["x"])
+      Rails.logger.info "🎯 Goal (#{goal_pos["x"]},#{goal_pos["y"]}) in snapshot: map_snapshot[#{snap_y}][#{snap_x}] = #{map_snapshot[snap_y][snap_x]}"
     end
 
     # Overlay items from items_data
