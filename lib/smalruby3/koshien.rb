@@ -175,8 +175,6 @@ module Smalruby3
       # Store player name for JSON communication
       @player_name = name
 
-      log("Connected to game as: #{name}")
-
       # Debug output
       warn "DEBUG connect_game: instance=#{object_id}, set @player_name=#{@player_name.inspect}"
 
