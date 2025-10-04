@@ -94,7 +94,7 @@ Sprite.new(
 
     # ゴールまで2マス以下の時に1つ前の位置に爆弾を設置
     if @action_count < 2 && @bomb_count < 2 && (list("$最短経路").length == 2 || list("$最短経路").length == 3) && @prev_position != koshien.player
-      koshien.set_message(list("$最短経路").length.to_s + "マス前爆弾:".to_s + @prev_position.to_s)
+      koshien.set_message(list("$最短経路").length.to_s + "マス前爆弾:" + @prev_position.to_s)
       koshien.set_bomb(@prev_position)
       @bomb_count += 1
       @action_count += 1
@@ -128,7 +128,7 @@ Sprite.new(
 
       # If there's a breakable wall (value 5), use dynamite
       if @check_map == koshien.object("壊せる壁") && (@next_map == koshien.object("空間") || @next_map == koshien.object("水たまり"))
-        koshien.set_message("壁破壊:".to_s + @check_pos.to_s + "、" + @next_my_position.to_s)
+        koshien.set_message("壁破壊:" + @check_pos.to_s + "、" + @next_my_position.to_s)
         koshien.set_dynamite(@next_my_position)
         @dynamite_count += 1
         @action_count += 1

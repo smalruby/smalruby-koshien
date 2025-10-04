@@ -120,10 +120,17 @@ RSpec.describe Smalruby3::Koshien, type: :model do
           ]
           except_cells = [[1, 1]]
 
-          koshien.send(:make_data, simple_map, except_cells)
+          graph_data = koshien.send(:make_data, simple_map, except_cells)
 
-          # Position (1,1) should be treated as a wall
-          expect(simple_map[1][1]).to eq(1)  # Should be changed to wall
+          # Original map should NOT be modified (uses deep copy)
+          expect(simple_map[1][1]).to eq(0)
+
+          # But graph should not have edges to (1,1) since it's treated as a wall
+          # Check that adjacent nodes don't connect to m1_1
+          expect(graph_data["m0_1"]).not_to include(have_attributes(nid: "m1_1"))
+          expect(graph_data["m1_0"]).not_to include(have_attributes(nid: "m1_1"))
+          expect(graph_data["m2_1"]).not_to include(have_attributes(nid: "m1_1"))
+          expect(graph_data["m1_2"]).not_to include(have_attributes(nid: "m1_1"))
         end
       end
     end

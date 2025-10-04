@@ -76,7 +76,7 @@ Sprite.new(
 
     # ゴールまで2マスまたは1マスの時に爆弾を設置
     if list("$最短経路").length < 4 && @bomb_count < 2
-      koshien.set_message(list("$最短経路").length.to_s + "マス前爆弾:".to_s + koshien.player.to_s)
+      koshien.set_message(list("$最短経路").length.to_s + "マス前爆弾:" + koshien.player.to_s)
       koshien.set_bomb(koshien.player)
       @bomb_count += 1
     else
