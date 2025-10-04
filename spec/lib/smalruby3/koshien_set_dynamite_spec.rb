@@ -11,10 +11,9 @@ RSpec.describe "Smalruby3::Koshien#set_dynamite", type: :model do
     koshien.instance_variable_set(:@current_position, nil)
   end
 
-  describe "in JSON mode" do
+  describe "in production mode" do
     before do
-      allow(koshien).to receive(:in_test_env?).and_return(false)
-      allow(koshien).to receive(:in_json_mode?).and_return(true)
+      ENV.delete("KOSHIEN_MOCK_MODE")
     end
 
     it "adds set_dynamite action with position" do
@@ -48,20 +47,24 @@ RSpec.describe "Smalruby3::Koshien#set_dynamite", type: :model do
     end
   end
 
-  describe "in test mode" do
+  describe "in mock mode" do
     before do
-      koshien.instance_variable_set(:@mode, :test)
-      allow(koshien).to receive(:in_test_env?).and_return(true)
-      allow(koshien).to receive(:in_json_mode?).and_return(false)
+      ENV["KOSHIEN_MOCK_MODE"] = "true"
+    end
+
+    after do
+      ENV.delete("KOSHIEN_MOCK_MODE")
     end
 
     it "logs dynamite placement without adding actions" do
-      expect(koshien).to receive(:log).with("Set dynamite at: 3:4")
+      # Get KoshienMock instance directly
+      mock_koshien = Smalruby3::KoshienMock.instance
 
-      koshien.set_dynamite("3:4")
+      # KoshienMock just logs, doesn't add actions
+      expect { mock_koshien.set_dynamite("3:4") }.to output(/Set dynamite at: 3:4/).to_stdout
 
-      actions = koshien.instance_variable_get(:@actions)
-      expect(actions).to be_empty
+      # KoshienMock doesn't have @actions instance variable
+      expect(mock_koshien.instance_variable_get(:@actions)).to be_nil
     end
   end
 end

@@ -113,6 +113,16 @@ module Smalruby3
   class Koshien
     include Singleton
 
+    # Factory method to return appropriate instance based on environment
+    def self.instance
+      if ENV["KOSHIEN_MOCK_MODE"] == "true"
+        require_relative "koshien_mock"
+        KoshienMock.instance
+      else
+        super
+      end
+    end
+
     # Map chip constants for pathfinding
     BLANK_CHIP = {index: 0, weight: 1}
     WALL1_CHIP = {index: 1}
@@ -162,35 +172,26 @@ module Smalruby3
     # - 1ゲームにつき1回しか実行できません。
     # - 2回目以降は無視されます。
     def connect_game(name:)
-      if in_test_env?
-        # Minimal stub for testing
-        @player_name = name
-        log("プレイヤー名を設定します: name=\"#{name}\"")
-      elsif in_json_mode?
-        # Store player name for JSON communication
-        @player_name = name
+      # Store player name for JSON communication
+      @player_name = name
 
-        log("Connected to game as: #{name}")
+      log("Connected to game as: #{name}")
 
-        # Debug output
-        warn "DEBUG connect_game: instance=#{object_id}, set @player_name=#{@player_name.inspect}"
+      # Debug output
+      warn "DEBUG connect_game: instance=#{object_id}, set @player_name=#{@player_name.inspect}"
 
-        # If not yet initialized, initialize now
-        if !@initialized
-          warn "DEBUG connect_game: Not initialized yet, calling setup_json_communication"
-          setup_json_communication
-        end
+      # If not yet initialized, initialize now
+      if !@initialized
+        warn "DEBUG connect_game: Not initialized yet, calling setup_json_communication"
+        setup_json_communication
+      end
 
-        # Send ready message now that we have the player name
-        if @initialization_received
-          send_ready_message(name)
-          warn "DEBUG connect_game: Sent ready message with player name: #{name}"
-        else
-          warn "DEBUG connect_game: Initialization not received yet, ready message will be sent later"
-        end
+      # Send ready message now that we have the player name
+      if @initialization_received
+        send_ready_message(name)
+        warn "DEBUG connect_game: Sent ready message with player name: #{name}"
       else
-        # Original stub behavior
-        log(%(プレイヤー名を設定します: name="#{name}"))
+        warn "DEBUG connect_game: Initialization not received yet, ready message will be sent later"
       end
     end
 
@@ -224,39 +225,28 @@ module Smalruby3
     #     - 使用回数を超えた命令は無視されます。
     def get_map_area(position)
       warn "DEBUG: get_map_area called with position: #{position.inspect}"
-      if in_test_env?
-        # Minimal stub for testing
-        log("Get map area: #{position}")
-        nil
-      elsif in_json_mode?
-        warn "DEBUG: in JSON mode, processing get_map_area"
-        if position.is_a?(String) && position.include?(":")
-          x, y = position.split(":").map(&:to_i)
-          warn "DEBUG: parsed coordinates x=#{x}, y=#{y}"
+      warn "DEBUG: in JSON mode, processing get_map_area"
+      if position.is_a?(String) && position.include?(":")
+        x, y = position.split(":").map(&:to_i)
+        warn "DEBUG: parsed coordinates x=#{x}, y=#{y}"
 
-          # Request map area data from game engine
-          warn "DEBUG: requesting map area data from game engine"
-          map_area_data = request_map_area(x, y)
-          warn "DEBUG: received map area data: #{map_area_data.inspect}"
+        # Request map area data from game engine
+        warn "DEBUG: requesting map area data from game engine"
+        map_area_data = request_map_area(x, y)
+        warn "DEBUG: received map area data: #{map_area_data.inspect}"
 
-          # Store the response for enemy and other_player methods
-          @last_map_area_response = map_area_data
+        # Store the response for enemy and other_player methods
+        @last_map_area_response = map_area_data
 
-          # Add exploration action for event logging
-          add_action({action_type: "explore", target_position: {x: x, y: y}, area_size: 5})
-          warn "DEBUG: added exploration action to queue"
+        # Add exploration action for event logging
+        add_action({action_type: "explore", target_position: {x: x, y: y}, area_size: 5})
+        warn "DEBUG: added exploration action to queue"
 
-          # Return the map area data to the AI script
-          warn "DEBUG: returning map area data to AI script"
-          map_area_data
-        else
-          warn "DEBUG: invalid position format: #{position.inspect}"
-          nil
-        end
+        # Return the map area data to the AI script
+        warn "DEBUG: returning map area data to AI script"
+        map_area_data
       else
-        # Original stub behavior
-        warn "DEBUG: not in JSON mode, using stub behavior"
-        log("Get map area: #{position}")
+        warn "DEBUG: invalid position format: #{position.inspect}"
         nil
       end
     end
@@ -288,23 +278,15 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def move_to(position)
-      if in_test_env?
-        # Minimal stub for testing
-        log("Move to: #{position}")
-      elsif in_json_mode?
-        warn "🎯 move_to called with: #{position.inspect} (class: #{position.class})"
-        if position.is_a?(String) && position.include?(":")
-          x, y = position.split(":").map(&:to_i)
-          warn "🎯 Parsed coordinates: (#{x}, #{y})"
-          add_action({action_type: "move", target_x: x, target_y: y})
-          # Track the intended movement for fallback position tracking
-          track_movement_action(x, y)
-        else
-          warn "🎯 Invalid position format: #{position.inspect}"
-        end
+      warn "🎯 move_to called with: #{position.inspect} (class: #{position.class})"
+      if position.is_a?(String) && position.include?(":")
+        x, y = position.split(":").map(&:to_i)
+        warn "🎯 Parsed coordinates: (#{x}, #{y})"
+        add_action({action_type: "move", target_x: x, target_y: y})
+        # Track the intended movement for fallback position tracking
+        track_movement_action(x, y)
       else
-        # Original stub behavior
-        log("Move to: #{position}")
+        warn "🎯 Invalid position format: #{position.inspect}"
       end
     end
 
@@ -338,18 +320,10 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def set_dynamite(position = nil)
-      if in_test_env?
-        # Minimal stub for testing
-        log("Set dynamite at: #{position}")
-      elsif in_json_mode?
-        pos = position || player
-        if pos.is_a?(String) && pos.include?(":")
-          x, y = pos.split(":").map(&:to_i)
-          add_action({action_type: "set_dynamite", target_x: x, target_y: y})
-        end
-      else
-        # Original stub behavior
-        log("Set dynamite at: #{position}")
+      pos = position || player
+      if pos.is_a?(String) && pos.include?(":")
+        x, y = pos.split(":").map(&:to_i)
+        add_action({action_type: "set_dynamite", target_x: x, target_y: y})
       end
     end
 
@@ -380,18 +354,10 @@ module Smalruby3
     # - ただし、move_to 以外は同じ命令を2回使用することも可能です。
     #     - 使用回数を超えた命令は無視されます。
     def set_bomb(position = nil)
-      if in_test_env?
-        # Minimal stub for testing
-        log("Set bomb at: #{position}")
-      elsif in_json_mode?
-        pos = position || player
-        if pos.is_a?(String) && pos.include?(":")
-          x, y = pos.split(":").map(&:to_i)
-          add_action({action_type: "set_bomb", target_x: x, target_y: y})
-        end
-      else
-        # Original stub behavior
-        log("Set bomb at: #{position}")
+      pos = position || player
+      if pos.is_a?(String) && pos.include?(":")
+        x, y = pos.split(":").map(&:to_i)
+        add_action({action_type: "set_bomb", target_x: x, target_y: y})
       end
     end
 
@@ -413,48 +379,42 @@ module Smalruby3
     #
     # - (実行するとターンが終了するので) 1ターンに1回のみ
     def turn_over
-      if in_test_env?
-        log("Turn over")
-      elsif in_json_mode?
-        warn "🔄 turn_over: called, queue size=#{@message_queue.length}, actions=#{@actions.length}"
+      warn "🔄 turn_over: called, queue size=#{@message_queue.length}, actions=#{@actions.length}"
 
-        send_turn_over
-        # Clear actions AFTER sending them
-        clear_actions
-        warn "🔄 turn_over: calling wait_for_turn_completion"
-        result = wait_for_turn_completion
-        warn "🔄 turn_over: wait_for_turn_completion returned #{result}"
+      send_turn_over
+      # Clear actions AFTER sending them
+      clear_actions
+      warn "🔄 turn_over: calling wait_for_turn_completion"
+      result = wait_for_turn_completion
+      warn "🔄 turn_over: wait_for_turn_completion returned #{result}"
 
-        # Wait for NEXT turn_start before returning
-        # This ensures the loop only executes once per game turn
-        # But stop if we get no messages (process being terminated)
-        warn "🔄 turn_over: waiting for next turn_start"
-        timeout_count = 0
-        loop do
-          msg = read_message
-          warn "🔄 turn_over: received message type=#{msg&.dig("type")}"
+      # Wait for NEXT turn_start before returning
+      # This ensures the loop only executes once per game turn
+      # But stop if we get no messages (process being terminated)
+      warn "🔄 turn_over: waiting for next turn_start"
+      timeout_count = 0
+      loop do
+        msg = read_message
+        warn "🔄 turn_over: received message type=#{msg&.dig("type")}"
 
-          if msg && msg["type"] == "turn_start"
-            update_turn_data(msg["data"])
-            warn "🔄 turn_over: processed turn_start for turn #{msg.dig("data", "turn_number")}"
+        if msg && msg["type"] == "turn_start"
+          update_turn_data(msg["data"])
+          warn "🔄 turn_over: processed turn_start for turn #{msg.dig("data", "turn_number")}"
+          break
+        elsif msg.nil?
+          timeout_count += 1
+          warn "🔄 turn_over: no message received (#{timeout_count}/3)"
+          if timeout_count >= 3
+            warn "🔄 turn_over: no messages after 3 attempts, process likely terminated"
             break
-          elsif msg.nil?
-            timeout_count += 1
-            warn "🔄 turn_over: no message received (#{timeout_count}/3)"
-            if timeout_count >= 3
-              warn "🔄 turn_over: no messages after 3 attempts, process likely terminated"
-              break
-            end
-            sleep 0.1
-          else
-            warn "🔄 turn_over: ignoring message type=#{msg["type"]}"
           end
+          sleep 0.1
+        else
+          warn "🔄 turn_over: ignoring message type=#{msg["type"]}"
         end
-
-        result
-      else
-        log("Turn over")
       end
+
+      result
     end
 
     # --------------------------------------------------------------------------------
@@ -545,35 +505,27 @@ module Smalruby3
 
       warn "🗺️ calc_route: src=#{src_coords.inspect} dst=#{dst_coords.inspect}"
 
-      if in_test_env?
-        # Simple stub for testing - return direct path
-        route = [[src_coords[0], src_coords[1]], [dst_coords[0], dst_coords[1]]]
-      elsif in_json_mode?
-        # Get current map data and calculate route using Dijkstra
-        map_data = build_map_data_from_game_state
-        except_cells_array = except_cells || []
+      # Get current map data and calculate route using Dijkstra
+      map_data = build_map_data_from_game_state
+      except_cells_array = except_cells || []
 
-        warn "🗺️ map_data size: #{map_data.size}x#{begin
-          map_data.first&.size
-        rescue
-          "nil"
-        end}"
-        warn "🗺️ except_cells: #{except_cells_array.inspect}"
+      warn "🗺️ map_data size: #{map_data.size}x#{begin
+        map_data.first&.size
+      rescue
+        "nil"
+      end}"
+      warn "🗺️ except_cells: #{except_cells_array.inspect}"
 
-        # Build graph data for pathfinding
-        graph_data = make_data(map_data, except_cells_array)
-        graph = DijkstraSearch::Graph.new(graph_data)
+      # Build graph data for pathfinding
+      graph_data = make_data(map_data, except_cells_array)
+      graph = DijkstraSearch::Graph.new(graph_data)
 
-        # Calculate route
-        src_id = "m#{src_coords[0]}_#{src_coords[1]}"
-        dst_id = "m#{dst_coords[0]}_#{dst_coords[1]}"
-        warn "🗺️ Finding route from #{src_id} to #{dst_id}"
-        route = graph.get_route(src_id, dst_id)
-        warn "🗺️ Route found: #{route.inspect}"
-      else
-        # Fallback - simple direct path
-        route = [[src_coords[0], src_coords[1]], [dst_coords[0], dst_coords[1]]]
-      end
+      # Calculate route
+      src_id = "m#{src_coords[0]}_#{src_coords[1]}"
+      dst_id = "m#{dst_coords[0]}_#{dst_coords[1]}"
+      warn "🗺️ Finding route from #{src_id} to #{dst_id}"
+      route = graph.get_route(src_id, dst_id)
+      warn "🗺️ Route found: #{route.inspect}"
 
       # Convert route to position strings and update result list
       result.replace(route.map { |coords| "#{coords[0]}:#{coords[1]}" })
@@ -600,24 +552,16 @@ module Smalruby3
     # - マップ情報を取得していない座標を指定した場合は、 `-1` が返されます。
     # - マップエリア外を指定した場合は、 `nil` が返されます。
     def map(position)
-      if in_test_env?
-        # Minimal stub for testing
-        -1
-      elsif in_json_mode?
-        # Get map data from visible_map or return unknown
-        coords = parse_position_string(position)
-        x, y = coords
+      # Get map data from visible_map or return unknown
+      coords = parse_position_string(position)
+      x, y = coords
 
-        # Check visible_map from current turn data
-        if @current_turn_data && @current_turn_data["visible_map"]
-          cell_key = "#{x}_#{y}"
-          @current_turn_data["visible_map"][cell_key] || -1
-        else
-          -1 # Unknown/unexplored
-        end
+      # Check visible_map from current turn data
+      if @current_turn_data && @current_turn_data["visible_map"]
+        cell_key = "#{x}_#{y}"
+        @current_turn_data["visible_map"][cell_key] || -1
       else
-        # Original stub behavior
-        -1
+        -1 # Unknown/unexplored
       end
     end
 
@@ -664,18 +608,10 @@ module Smalruby3
     #     ```
     # - さらに、そこからある座標のマップ情報を参照するには map_from メソッドを使います。
     def map_all
-      if in_test_env?
-        # Minimal stub for testing
-        Map.new("").to_s
-      elsif in_json_mode?
-        # Build map string from visible_map data
-        if @current_turn_data && @current_turn_data["visible_map"]
-          build_map_string_from_visible_map
-        else
-          Map.new("").to_s
-        end
+      # Build map string from visible_map data
+      if @current_turn_data && @current_turn_data["visible_map"]
+        build_map_string_from_visible_map
       else
-        # Original behavior
         Map.new("").to_s
       end
     end
@@ -751,26 +687,24 @@ module Smalruby3
 
       object_positions = []
 
-      if in_json_mode?
-        # Search through visible map for matching objects
-        if @current_turn_data && @current_turn_data["visible_map"]
-          visible_map = @current_turn_data["visible_map"]
-          map_data = visible_map["map_data"]
+      # Search through visible map for matching objects
+      if @current_turn_data && @current_turn_data["visible_map"]
+        visible_map = @current_turn_data["visible_map"]
+        map_data = visible_map["map_data"]
 
-          if map_data&.is_a?(Array)
-            # Map data is a 2D array with string item marks
-            # Positive items: "a"-"e"
-            # Negative items: "A"-"D"
-            (min_y..max_y).each do |y|
-              next unless map_data[y]
-              (min_x..max_x).each do |x|
-                cell_value = map_data[y][x]
-                next unless cell_value
+        if map_data&.is_a?(Array)
+          # Map data is a 2D array with string item marks
+          # Positive items: "a"-"e"
+          # Negative items: "A"-"D"
+          (min_y..max_y).each do |y|
+            next unless map_data[y]
+            (min_x..max_x).each do |x|
+              cell_value = map_data[y][x]
+              next unless cell_value
 
-                # Check if cell value is a string mark that matches requested objects
-                if cell_value.is_a?(String) && objects.include?(cell_value)
-                  object_positions << [x, y]
-                end
+              # Check if cell value is a string mark that matches requested objects
+              if cell_value.is_a?(String) && objects.include?(cell_value)
+                object_positions << [x, y]
               end
             end
           end
@@ -840,17 +774,10 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player
-      if in_test_env?
-        # Minimal stub for testing
-        nil
-      elsif in_json_mode?
-        # Return other_player position from last map_area response
-        if @last_map_area_response && @last_map_area_response[:other_player]
-          pos = @last_map_area_response[:other_player]
-          "#{pos[0]}:#{pos[1]}"
-        end
-      else
-        raise "Traditional mode not supported. Use JSON mode only."
+      # Return other_player position from last map_area response
+      if @last_map_area_response && @last_map_area_response[:other_player]
+        pos = @last_map_area_response[:other_player]
+        "#{pos[0]}:#{pos[1]}"
       end
     end
 
@@ -870,16 +797,9 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_x
-      if in_test_env?
-        # Minimal stub for testing
-        nil
-      elsif in_json_mode?
-        # Return other_player x coordinate from last map_area response
-        if @last_map_area_response && @last_map_area_response[:other_player]
-          @last_map_area_response[:other_player][0]
-        end
-      else
-        raise "Traditional mode not supported. Use JSON mode only."
+      # Return other_player x coordinate from last map_area response
+      if @last_map_area_response && @last_map_area_response[:other_player]
+        @last_map_area_response[:other_player][0]
       end
     end
 
@@ -899,16 +819,9 @@ module Smalruby3
     # - 対戦キャラクターの座標を把握していない場合は `nil` が返されます。
     # - get_map_area 命令を繰り返し行っている場合、情報が上書きされていくため、一度把握した対戦キャラクターの座標を見失う場合があります。
     def other_player_y
-      if in_test_env?
-        # Minimal stub for testing
-        nil
-      elsif in_json_mode?
-        # Return other_player y coordinate from last map_area response
-        if @last_map_area_response && @last_map_area_response[:other_player]
-          @last_map_area_response[:other_player][1]
-        end
-      else
-        raise "Traditional mode not supported. Use JSON mode only."
+      # Return other_player y coordinate from last map_area response
+      if @last_map_area_response && @last_map_area_response[:other_player]
+        @last_map_area_response[:other_player][1]
       end
     end
 
@@ -926,18 +839,11 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy
-      if in_test_env?
-        # Minimal stub for testing
-        nil
-      elsif in_json_mode?
-        # Return enemy position from current turn data
-        enemies = @current_turn_data&.dig("enemies") || []
-        enemy_data = enemies.first
-        if enemy_data && enemy_data["x"] && enemy_data["y"]
-          "#{enemy_data["x"]}:#{enemy_data["y"]}"
-        end
-      else
-        raise "Traditional mode not supported. Use JSON mode only."
+      # Return enemy position from current turn data
+      enemies = @current_turn_data&.dig("enemies") || []
+      enemy_data = enemies.first
+      if enemy_data && enemy_data["x"] && enemy_data["y"]
+        "#{enemy_data["x"]}:#{enemy_data["y"]}"
       end
     end
 
@@ -955,16 +861,9 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_x
-      if in_test_env?
-        # Minimal stub for testing
-        nil
-      elsif in_json_mode?
-        # Return enemy x coordinate from current turn data
-        enemies = @current_turn_data&.dig("enemies") || []
-        enemies.first&.dig("x")
-      else
-        raise "Traditional mode not supported. Use JSON mode only."
-      end
+      # Return enemy x coordinate from current turn data
+      enemies = @current_turn_data&.dig("enemies") || []
+      enemies.first&.dig("x")
     end
 
     # :call-seq:
@@ -981,16 +880,9 @@ module Smalruby3
     # - 得られる情報は、最後に get_map_area 命令を実行した時点の情報です。
     # - 妨害キャラクターの座標は、 get_map_area 命令の範囲に妨害キャラクターがいなくても把握できます。
     def enemy_y
-      if in_test_env?
-        # Minimal stub for testing
-        nil
-      elsif in_json_mode?
-        # Return enemy y coordinate from current turn data
-        enemies = @current_turn_data&.dig("enemies") || []
-        enemies.first&.dig("y")
-      else
-        raise "Traditional mode not supported. Use JSON mode only."
-      end
+      # Return enemy y coordinate from current turn data
+      enemies = @current_turn_data&.dig("enemies") || []
+      enemies.first&.dig("y")
     end
 
     # :call-seq:
@@ -1006,20 +898,13 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal
-      if in_test_env?
-        # Minimal stub for testing
-        "14:14"
-      elsif in_json_mode?
-        pos = goal_position
-        # Handle both string and symbol keys
-        x = pos["x"] || pos[:x]
-        y = pos["y"] || pos[:y]
-        result = "#{x}:#{y}"
-        warn "🎯 koshien.goal called: pos=#{pos.inspect}, result=#{result.inspect}"
-        result
-      else
-        "14:14"
-      end
+      pos = goal_position
+      # Handle both string and symbol keys
+      x = pos["x"] || pos[:x]
+      y = pos["y"] || pos[:y]
+      result = "#{x}:#{y}"
+      warn "🎯 koshien.goal called: pos=#{pos.inspect}, result=#{result.inspect}"
+      result
     end
 
     # :call-seq:
@@ -1035,15 +920,8 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_x
-      if in_test_env?
-        # Minimal stub for testing
-        14
-      elsif in_json_mode?
-        pos = goal_position
-        pos["x"] || pos[:x]
-      else
-        14
-      end
+      pos = goal_position
+      pos["x"] || pos[:x]
     end
 
     # :call-seq:
@@ -1059,15 +937,8 @@ module Smalruby3
     #
     # - ゴールの座標は、マップ情報を取得していなくても参照できます。
     def goal_y
-      if in_test_env?
-        # Minimal stub for testing
-        14
-      elsif in_json_mode?
-        pos = goal_position
-        pos["y"] || pos[:y]
-      else
-        14
-      end
+      pos = goal_position
+      pos["y"] || pos[:y]
     end
 
     # :call-seq:
@@ -1083,17 +954,10 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player
-      if in_test_env?
-        # Minimal stub for testing
-        position(0, 0)
-      elsif in_json_mode?
-        pos = current_player_position
-        result = "#{pos[:x]}:#{pos[:y]}"
-        warn "🎯 koshien.player called: pos=#{pos.inspect}, result=#{result.inspect}"
-        result
-      else
-        position(0, 0)
-      end
+      pos = current_player_position
+      result = "#{pos[:x]}:#{pos[:y]}"
+      warn "🎯 koshien.player called: pos=#{pos.inspect}, result=#{result.inspect}"
+      result
     end
 
     # :call-seq:
@@ -1109,14 +973,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player_x
-      if in_test_env?
-        # Minimal stub for testing
-        0
-      elsif in_json_mode?
-        current_player_position[:x]
-      else
-        0
-      end
+      current_player_position[:x]
     end
 
     # :call-seq:
@@ -1132,14 +989,7 @@ module Smalruby3
     #
     # - プレイヤーの座標は、マップ情報を取得していなくても参照できます。
     def player_y
-      if in_test_env?
-        # Minimal stub for testing
-        0
-      elsif in_json_mode?
-        current_player_position[:y]
-      else
-        0
-      end
+      current_player_position[:y]
     end
 
     # :call-seq:
@@ -1222,15 +1072,7 @@ module Smalruby3
     #
     # - AI開発時の動作確認に使うことを想定しています。
     def set_message(message)
-      if in_test_env?
-        # Minimal stub for testing
-        log("Message: #{message}")
-      elsif in_json_mode?
-        send_debug_message(message.to_s)
-      else
-        # Original stub behavior
-        log("Message: #{message}")
-      end
+      send_debug_message(message.to_s)
     end
 
     private
@@ -1563,12 +1405,6 @@ module Smalruby3
       nil
     end
 
-    def in_json_mode?
-      # JSON mode is now the default behavior
-      # Only disable if explicitly set to false
-      ENV["KOSHIEN_JSON_MODE"] != "false"
-    end
-
     # Helper methods for calc_route
 
     def parse_position_string(pos_str)
@@ -1678,17 +1514,6 @@ module Smalruby3
         end
       end
       data
-    end
-
-    def in_test_env?
-      defined?(Rails) && Rails.env.test?
-    end
-
-    def log(message)
-      if in_test_env?
-        # Simple logging for testing
-        puts message
-      end
     end
   end
 end

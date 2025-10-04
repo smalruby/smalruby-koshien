@@ -7,9 +7,17 @@ RSpec.describe Smalruby3::Koshien, type: :model do
   let(:result_list) { List.new }
 
   describe "#calc_route" do
-    context "in test environment" do
+    context "in mock mode" do
+      before do
+        ENV["KOSHIEN_MOCK_MODE"] = "true"
+      end
+
+      after do
+        ENV.delete("KOSHIEN_MOCK_MODE")
+      end
+
       it "returns a simple direct path" do
-        expect(Rails.env).to receive(:test?).and_return(true)
+        koshien = Smalruby3::Koshien.instance
 
         koshien.calc_route(result: result_list, src: "1:1", dst: "3:3")
 
@@ -19,10 +27,9 @@ RSpec.describe Smalruby3::Koshien, type: :model do
       end
     end
 
-    context "in JSON mode with mock game state" do
+    context "in production mode with mock game state" do
       before do
-        allow(koshien).to receive(:in_test_env?).and_return(false)
-        allow(koshien).to receive(:in_json_mode?).and_return(true)
+        ENV.delete("KOSHIEN_MOCK_MODE")
 
         # Mock the build_map_data_from_game_state to return a simple 5x5 map
         simple_map = Array.new(5) { Array.new(5, 0) }  # All open spaces

@@ -8,9 +8,8 @@ RSpec.describe Smalruby3::Koshien, type: :model do
     let(:result_list) { Smalruby3::List.new }
 
     before do
-      # Force JSON mode for testing
-      allow(koshien).to receive(:in_json_mode?).and_return(true)
-      allow(koshien).to receive(:in_test_env?).and_return(false)
+      # Ensure production mode (not mock mode)
+      ENV.delete("KOSHIEN_MOCK_MODE")
 
       # Setup mock game state with known map data
       koshien.instance_variable_set(:@current_turn_data, {
