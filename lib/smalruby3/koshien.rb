@@ -1609,6 +1609,9 @@ module Smalruby3
 
     def make_data(map, except_cells)
       except_cells.each do |cell|
+        # Skip nil cells
+        next if cell.nil?
+
         # Handle both string format "x:y" and array format [x, y]
         if cell.is_a?(String)
           ex, ey = parse_position_string(cell)
