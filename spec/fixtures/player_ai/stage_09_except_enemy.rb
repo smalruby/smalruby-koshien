@@ -1,104 +1,70 @@
-# frozen_string_literal: true
-
 require "smalruby3"
 
+# 段階(8): 最後まで全領域を順に探索後、減点アイテム、敵を避けてゴールに向かう
+#
+# 成功条件:
+# - 最初の8ターンで全領域を探索し終えること
+# - 減点アイテムを避けたうえで、最短経路でゴールまで向かうこと
+# - このコード自体は無限ループだが、ゴール後にAiプロセスが停止すること
+# - 途中に加点アイテムがあっても避けないこと
+# - 途中に減点アイテムがあると避けること
+# - 途中に妨害キャラクターがいると避けること
+# - 移動した分の得点が加算されること (5回移動するごとに3点)
+# - enemyと1度も接触しないこと
+
 Stage.new(
-  backdrop: "color_06", # default yellow backdrop
-  variables: [
+  "Stage",
+  lists: [
     {
-      name: "turn_count" # variable("$turn_count")
+      name: "探索位置", # list("$探索位置")
+      value: [ # 探索する座標のリスト
+        "2:2", "7:2", "12:2", "16:2",
+        "2:7", "7:7", "12:7", "16:7",
+        "2:12", "7:12", "12:12", "16:12",
+        "2:16", "7:16", "12:16", "16:16"
+      ]
     },
     {
-      name: "center_x" # variable("$center_x")
+      name: "通らない座標" # list("$通らない座標")
     },
     {
-      name: "center_y" # variable("$center_y")
+      name: "最短経路" # list("$最短経路")
     }
   ]
-)
+) do
+end
 
 Sprite.new(
-  costume: "emo_halloween1", # default costume
-  x: 0,
-  y: 0
+  "スプライト1"
 ) do
-  koshien = self.koshien
+  koshien.connect_game(name: "except_enemy")
 
   @turn_count = 0
 
-  koshien.connect_game
-
-  koshien.set_message("移動開始")
-
-  50.times do
-    # Get current enemy position
-    koshien.enemy
-    @enemy_x_val = koshien.enemy_x
-    @enemy_y_val = koshien.enemy_y
-
-    # Get other player position
-    koshien.other_player
-    @other_x = koshien.other_player_x
-    @other_y = koshien.other_player_y
-
-    # Calculate center position between self and other player
-    @my_x = koshien.position_of_x(koshien.player)
-    @my_y = koshien.position_of_y(koshien.player)
-
-    if @other_x && @other_y
-      # Calculate center point between players
-      @center_x = (@my_x + @other_x) / 2
-      @center_y = (@my_y + @other_y) / 2
-      variable("$center_x").write(@center_x)
-      variable("$center_y").write(@center_y)
-    else
-      # If other player not visible, explore around self
-      @center_x = @my_x
-      @center_y = @my_y
+  koshien.set_message("全領域探索中")
+  8.times do
+    2.times do
+      @position = list("$探索位置")[1]
+      list("$探索位置").delete_at(1)
+      koshien.get_map_area(@position)
     end
 
-    # Explore the center area
-    koshien.get_map_area("#{@center_x}:#{@center_y}")
+    koshien.turn_over
+    @turn_count += 1
+  end
 
-    # Check enemy position and avoid if close
-    if @enemy_x_val && @enemy_y_val
-      # Calculate distance to enemy
-      @enemy_dist = ((@my_x - @enemy_x_val).abs + (@my_y - @enemy_y_val).abs)
+  koshien.set_message("ゴールに向かって移動中")
+  loop do
+    koshien.get_map_area(koshien.player)
 
-      if @enemy_dist <= 3
-        # Enemy is close, move away
-        koshien.set_message("敵から逃げる")
-
-        # Find safe direction (opposite of enemy)
-        @dx = @my_x - @enemy_x_val
-        @dy = @my_y - @enemy_y_val
-
-        # Determine safe move
-        if @dx.abs > @dy.abs
-          # Move horizontally away from enemy
-          @target_x = (@dx > 0) ? @my_x + 1 : @my_x - 1
-          @target_y = @my_y
-        else
-          # Move vertically away from enemy
-          @target_x = @my_x
-          @target_y = (@dy > 0) ? @my_y + 1 : @my_y - 1
-        end
-
-        # Ensure target is within bounds
-        @target_x = @target_x.clamp(0, 16)
-        @target_y = @target_y.clamp(0, 16)
-
-        koshien.move_to("#{@target_x}:#{@target_y}")
-      else
-        # Enemy is far, move towards center/other player
-        koshien.set_message("中心点に移動")
-        koshien.move_to("#{@center_x}:#{@center_y}")
-      end
-    else
-      # No enemy info, just explore center
-      koshien.set_message("探索中")
-      koshien.move_to("#{@center_x}:#{@center_y}")
+    koshien.locate_objects(result: list("$通らない座標"), cent: "7:7", sq_size: 15, objects: "ABCD")
+    list("$通らない座標").push(koshien.enemy)
+    koshien.calc_route(result: list("$最短経路"), src: koshien.player, dst: koshien.goal, except_cells: list("$通らない座標"))
+    if list("$最短経路").length == 1
+      # 減点アイテムで囲まれてしまっている場合は減点アイテムを避けずにゴールに向かう
+      koshien.calc_route(result: list("$最短経路"))
     end
+    koshien.move_to(list("$最短経路")[2])
 
     koshien.turn_over
     @turn_count += 1

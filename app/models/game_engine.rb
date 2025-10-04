@@ -251,7 +251,17 @@ class GameEngine
         # Start turn
         # Reload player to get latest position/state after previous player's actions
         player.reload
+        warn "🔄 Turn #{turn.turn_number} starting for player #{player.id}, explored before build_turn_data: #{player.my_map.flatten.count { |v| v != -1 }}/289"
         turn_data = build_turn_data(player, turn.turn_number)
+
+        # Debug: Check visible_map data
+        if turn_data[:visible_map] && turn_data[:visible_map][:map_data]
+          explored = turn_data[:visible_map][:map_data].flatten.count { |v| v != -1 }
+          total = turn_data[:visible_map][:map_data].flatten.size
+          warn "🔍 Turn #{turn.turn_number} Player #{player.id}: visible_map has #{explored}/#{total} explored cells"
+          Rails.logger.info "🔍 Turn #{turn.turn_number} Player #{player.id}: visible_map has #{explored}/#{total} explored cells"
+        end
+
         unless ai_manager.start_turn(**turn_data)
           raise "Failed to start AI turn for player #{player.id}"
         end
@@ -565,6 +575,14 @@ class GameEngine
   def build_visible_map(player)
     # Build visible map based on player's personal exploration map
     map_size = game.game_map.size
+    explored = player.my_map.flatten.count { |v| v != -1 }
+    total = player.my_map.flatten.size
+
+    # Direct stderr output to bypass log configuration
+    warn "🗺️📤 build_visible_map for player #{player.id}: #{explored}/#{total} cells explored"
+    warn "🗺️📤 Sample: [1][1]=#{player.my_map[1][1].inspect}, [1][15]=#{player.my_map[1][15].inspect}, [2][15]=#{player.my_map[2][15].inspect}"
+    Rails.logger.info "🗺️📤 build_visible_map for player #{player.id}: #{explored}/#{total} cells explored"
+
     {
       width: map_size[:width],
       height: map_size[:height],
