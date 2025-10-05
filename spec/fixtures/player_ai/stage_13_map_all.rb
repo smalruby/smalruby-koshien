@@ -165,8 +165,10 @@ Sprite.new(
   end
 
   def self.最短経路を進む
-    koshien.move_to(list("$最短経路")[2])
-    @action_count += 1
+    if list("$最短経路").length > 2
+      koshien.move_to(list("$最短経路")[2])
+      @action_count += 1
+    end
   end
 
   def self.マップ情報を取得する(position)

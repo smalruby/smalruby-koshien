@@ -13,6 +13,9 @@ module Smalruby3
 
     def data(position)
       return -1 unless @map
+      return -1 if @map.empty?
+      return -1 if position.y < 0 || position.y >= @map.length
+      return -1 if position.x < 0 || !@map[position.y] || position.x >= @map[position.y].length
 
       @map[position.y][position.x]
     end

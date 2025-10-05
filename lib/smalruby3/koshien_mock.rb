@@ -65,8 +65,9 @@ module Smalruby3
     end
 
     def map_all
-      # Return simple 2D array representation as string
-      "[]"
+      # Return 15x15 map with all cells as unexplored (-1 represented as "-")
+      # Format: "---------------,---------------,..." (15 rows of 15 chars each)
+      Array.new(15) { "-" * 15 }.join(",")
     end
 
     def other_player
