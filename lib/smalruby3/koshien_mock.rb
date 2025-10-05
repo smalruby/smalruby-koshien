@@ -65,7 +65,8 @@ module Smalruby3
     end
 
     def map_all
-      Map.new("").to_s
+      # Return simple 2D array representation as string
+      "[]"
     end
 
     def other_player
@@ -118,6 +119,29 @@ module Smalruby3
 
     def set_message(message)
       log("Message: #{message}")
+    end
+
+    def locate_objects(result:, cent: nil, sq_size: nil, objects: nil)
+      result ||= List.new
+      # Simple stub - return empty list
+      result.replace([])
+      log("Locate objects: cent=#{cent}, sq_size=#{sq_size}, objects=#{objects}")
+      result
+    end
+
+    def map_from(position, from)
+      log("Map from: position=#{position}, from=#{from}")
+      -1  # Unknown/unexplored
+    end
+
+    def position_of_x(position)
+      coords = parse_position_string(position)
+      coords[0]
+    end
+
+    def position_of_y(position)
+      coords = parse_position_string(position)
+      coords[1]
     end
 
     def object(name)
