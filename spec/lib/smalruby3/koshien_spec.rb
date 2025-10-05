@@ -125,6 +125,357 @@ RSpec.describe Smalruby3::Koshien do
       expect(return_value).to be(result)
       expect(result.length).to be > 0
     end
+
+    context "with different map cell types" do
+      it "handles positive item cells (a-e)" do
+        # Create map with positive items
+        game_map_with_items = GameMap.create!(
+          name: "Map with Items",
+          description: "Test map with positive items",
+          map_data: [
+            [0, "a", 0],
+            [0, "b", 0],
+            [0, 0, 0]
+          ],
+          map_height: Array.new(3) { Array.new(3) { 0 } },
+          goal_position: {"x" => 2, "y" => 2}
+        )
+
+        game = Game.create!(
+          first_player_ai: PlayerAi.first,
+          second_player_ai: PlayerAi.first,
+          game_map: game_map_with_items,
+          battle_url: "test_items",
+          status: :in_progress
+        )
+
+        game_round = GameRound.create!(
+          game: game,
+          round_number: 1,
+          item_locations: {}
+        )
+
+        player = Player.create!(
+          game_round: game_round,
+          player_ai: PlayerAi.first,
+          position_x: 0,
+          position_y: 0,
+          score: 0,
+          dynamite_left: 3,
+          bomb_left: 2,
+          walk_bonus_counter: 0,
+          acquired_positive_items: [nil, 0, 0, 0, 0, 0],
+          in_water: false,
+          character_level: 1,
+          status: :playing,
+          has_goal_bonus: false,
+          walk_bonus: false
+        )
+
+        GameTurn.create!(
+          game_round: game_round,
+          turn_number: 1,
+          turn_finished: false
+        )
+
+        visible_map = {}
+        3.times do |x|
+          3.times do |y|
+            cell_value = game_map_with_items.map_data[y][x]
+            visible_map["#{x}_#{y}"] = cell_value
+          end
+        end
+
+        koshien.instance_variable_set(:@game, game)
+        koshien.instance_variable_set(:@player, player)
+        koshien.instance_variable_set(:@current_position, {x: 0, y: 0})
+        koshien.instance_variable_set(:@current_turn_data, {
+          "player_x" => 0,
+          "player_y" => 0,
+          "goal_x" => 2,
+          "goal_y" => 2,
+          "visible_map" => {"map_data" => game_map_with_items.map_data}
+        })
+
+        result = Smalruby3::List.new
+        koshien.calc_route(result: result, src: "0:0", dst: "2:2")
+
+        expect(result.length).to be > 0
+        expect(result[1]).to eq("0:0")
+      end
+
+      it "handles negative item cells (A-D)" do
+        # Create map with negative items
+        game_map_with_negative = GameMap.create!(
+          name: "Map with Negative Items",
+          description: "Test map with negative items",
+          map_data: [
+            [0, "A", 0],
+            [0, "B", 0],
+            [0, 0, 0]
+          ],
+          map_height: Array.new(3) { Array.new(3) { 0 } },
+          goal_position: {"x" => 2, "y" => 2}
+        )
+
+        game = Game.create!(
+          first_player_ai: PlayerAi.first,
+          second_player_ai: PlayerAi.first,
+          game_map: game_map_with_negative,
+          battle_url: "test_negative_items",
+          status: :in_progress
+        )
+
+        game_round = GameRound.create!(
+          game: game,
+          round_number: 1,
+          item_locations: {}
+        )
+
+        player = Player.create!(
+          game_round: game_round,
+          player_ai: PlayerAi.first,
+          position_x: 0,
+          position_y: 0,
+          score: 0,
+          dynamite_left: 3,
+          bomb_left: 2,
+          walk_bonus_counter: 0,
+          acquired_positive_items: [nil, 0, 0, 0, 0, 0],
+          in_water: false,
+          character_level: 1,
+          status: :playing,
+          has_goal_bonus: false,
+          walk_bonus: false
+        )
+
+        GameTurn.create!(
+          game_round: game_round,
+          turn_number: 1,
+          turn_finished: false
+        )
+
+        koshien.instance_variable_set(:@game, game)
+        koshien.instance_variable_set(:@player, player)
+        koshien.instance_variable_set(:@current_position, {x: 0, y: 0})
+        koshien.instance_variable_set(:@current_turn_data, {
+          "player_x" => 0,
+          "player_y" => 0,
+          "goal_x" => 2,
+          "goal_y" => 2,
+          "visible_map" => {"map_data" => game_map_with_negative.map_data}
+        })
+
+        result = Smalruby3::List.new
+        koshien.calc_route(result: result, src: "0:0", dst: "2:2")
+
+        expect(result.length).to be > 0
+      end
+
+      it "handles water cells with higher cost" do
+        # Create map with water
+        game_map_with_water = GameMap.create!(
+          name: "Map with Water",
+          description: "Test map with water cells",
+          map_data: [
+            [0, 4, 0],
+            [0, 4, 0],
+            [0, 0, 0]
+          ],
+          map_height: Array.new(3) { Array.new(3) { 0 } },
+          goal_position: {"x" => 2, "y" => 2}
+        )
+
+        game = Game.create!(
+          first_player_ai: PlayerAi.first,
+          second_player_ai: PlayerAi.first,
+          game_map: game_map_with_water,
+          battle_url: "test_water",
+          status: :in_progress
+        )
+
+        game_round = GameRound.create!(
+          game: game,
+          round_number: 1,
+          item_locations: {}
+        )
+
+        player = Player.create!(
+          game_round: game_round,
+          player_ai: PlayerAi.first,
+          position_x: 0,
+          position_y: 0,
+          score: 0,
+          dynamite_left: 3,
+          bomb_left: 2,
+          walk_bonus_counter: 0,
+          acquired_positive_items: [nil, 0, 0, 0, 0, 0],
+          in_water: false,
+          character_level: 1,
+          status: :playing,
+          has_goal_bonus: false,
+          walk_bonus: false
+        )
+
+        GameTurn.create!(
+          game_round: game_round,
+          turn_number: 1,
+          turn_finished: false
+        )
+
+        koshien.instance_variable_set(:@game, game)
+        koshien.instance_variable_set(:@player, player)
+        koshien.instance_variable_set(:@current_position, {x: 0, y: 0})
+        koshien.instance_variable_set(:@current_turn_data, {
+          "player_x" => 0,
+          "player_y" => 0,
+          "goal_x" => 2,
+          "goal_y" => 2,
+          "visible_map" => {"map_data" => game_map_with_water.map_data}
+        })
+
+        result = Smalruby3::List.new
+        koshien.calc_route(result: result, src: "0:0", dst: "2:2")
+
+        expect(result.length).to be > 0
+      end
+
+      it "handles uncleared cells with highest cost" do
+        # Create map with uncleared cells
+        game_map_with_uncleared = GameMap.create!(
+          name: "Map with Uncleared",
+          description: "Test map with uncleared cells",
+          map_data: [
+            [0, -1, 0],
+            [0, -1, 0],
+            [0, 0, 0]
+          ],
+          map_height: Array.new(3) { Array.new(3) { 0 } },
+          goal_position: {"x" => 2, "y" => 2}
+        )
+
+        game = Game.create!(
+          first_player_ai: PlayerAi.first,
+          second_player_ai: PlayerAi.first,
+          game_map: game_map_with_uncleared,
+          battle_url: "test_uncleared",
+          status: :in_progress
+        )
+
+        game_round = GameRound.create!(
+          game: game,
+          round_number: 1,
+          item_locations: {}
+        )
+
+        player = Player.create!(
+          game_round: game_round,
+          player_ai: PlayerAi.first,
+          position_x: 0,
+          position_y: 0,
+          score: 0,
+          dynamite_left: 3,
+          bomb_left: 2,
+          walk_bonus_counter: 0,
+          acquired_positive_items: [nil, 0, 0, 0, 0, 0],
+          in_water: false,
+          character_level: 1,
+          status: :playing,
+          has_goal_bonus: false,
+          walk_bonus: false
+        )
+
+        GameTurn.create!(
+          game_round: game_round,
+          turn_number: 1,
+          turn_finished: false
+        )
+
+        koshien.instance_variable_set(:@game, game)
+        koshien.instance_variable_set(:@player, player)
+        koshien.instance_variable_set(:@current_position, {x: 0, y: 0})
+        koshien.instance_variable_set(:@current_turn_data, {
+          "player_x" => 0,
+          "player_y" => 0,
+          "goal_x" => 2,
+          "goal_y" => 2,
+          "visible_map" => {"map_data" => game_map_with_uncleared.map_data}
+        })
+
+        result = Smalruby3::List.new
+        koshien.calc_route(result: result, src: "0:0", dst: "2:2")
+
+        expect(result.length).to be > 0
+      end
+
+      it "handles unknown cell types with default cost" do
+        # Create map with unknown cell type
+        game_map_with_unknown = GameMap.create!(
+          name: "Map with Unknown",
+          description: "Test map with unknown cell types",
+          map_data: [
+            [0, 99, 0],
+            [0, 99, 0],
+            [0, 0, 0]
+          ],
+          map_height: Array.new(3) { Array.new(3) { 0 } },
+          goal_position: {"x" => 2, "y" => 2}
+        )
+
+        game = Game.create!(
+          first_player_ai: PlayerAi.first,
+          second_player_ai: PlayerAi.first,
+          game_map: game_map_with_unknown,
+          battle_url: "test_unknown",
+          status: :in_progress
+        )
+
+        game_round = GameRound.create!(
+          game: game,
+          round_number: 1,
+          item_locations: {}
+        )
+
+        player = Player.create!(
+          game_round: game_round,
+          player_ai: PlayerAi.first,
+          position_x: 0,
+          position_y: 0,
+          score: 0,
+          dynamite_left: 3,
+          bomb_left: 2,
+          walk_bonus_counter: 0,
+          acquired_positive_items: [nil, 0, 0, 0, 0, 0],
+          in_water: false,
+          character_level: 1,
+          status: :playing,
+          has_goal_bonus: false,
+          walk_bonus: false
+        )
+
+        GameTurn.create!(
+          game_round: game_round,
+          turn_number: 1,
+          turn_finished: false
+        )
+
+        koshien.instance_variable_set(:@game, game)
+        koshien.instance_variable_set(:@player, player)
+        koshien.instance_variable_set(:@current_position, {x: 0, y: 0})
+        koshien.instance_variable_set(:@current_turn_data, {
+          "player_x" => 0,
+          "player_y" => 0,
+          "goal_x" => 2,
+          "goal_y" => 2,
+          "visible_map" => {"map_data" => game_map_with_unknown.map_data}
+        })
+
+        result = Smalruby3::List.new
+        koshien.calc_route(result: result, src: "0:0", dst: "2:2")
+
+        expect(result.length).to be > 0
+      end
+    end
   end
 
   describe "#map" do
