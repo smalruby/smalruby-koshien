@@ -699,6 +699,89 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#enemy" do
+    context "when enemy data is available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, {"enemies" => [{"x" => 10, "y" => 15}]})
+      end
+
+      it "returns enemy position as string" do
+        result = koshien.enemy
+        expect(result).to eq("10:15")
+      end
+    end
+
+    context "when enemy data is not available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, nil)
+      end
+
+      it "returns nil" do
+        result = koshien.enemy
+        expect(result).to be_nil
+      end
+    end
+
+    context "when enemies array is empty" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, {"enemies" => []})
+      end
+
+      it "returns nil" do
+        result = koshien.enemy
+        expect(result).to be_nil
+      end
+    end
+  end
+
+  describe "#enemy_x" do
+    context "when enemy data is available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, {"enemies" => [{"x" => 6, "y" => 9}]})
+      end
+
+      it "returns x coordinate of enemy" do
+        result = koshien.enemy_x
+        expect(result).to eq(6)
+      end
+    end
+
+    context "when enemy data is not available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, nil)
+      end
+
+      it "returns nil" do
+        result = koshien.enemy_x
+        expect(result).to be_nil
+      end
+    end
+  end
+
+  describe "#enemy_y" do
+    context "when enemy data is available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, {"enemies" => [{"x" => 6, "y" => 13}]})
+      end
+
+      it "returns y coordinate of enemy" do
+        result = koshien.enemy_y
+        expect(result).to eq(13)
+      end
+    end
+
+    context "when enemy data is not available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, nil)
+      end
+
+      it "returns nil" do
+        result = koshien.enemy_y
+        expect(result).to be_nil
+      end
+    end
+  end
+
   describe "#object" do
     context "with unknown/unexplored cell names" do
       it "returns -1 for 'unknown'" do
