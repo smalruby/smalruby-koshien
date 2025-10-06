@@ -595,6 +595,54 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#get_map_area" do
+    context "with valid position string" do
+      before do
+        # Mock request_map_area to return test data
+        allow(koshien).to receive(:request_map_area).and_return({
+          "visible_map" => {"5_7" => 1, "6_7" => 0},
+          "other_players" => [{"x" => 10, "y" => 12}],
+          "enemies" => [{"x" => 3, "y" => 4}]
+        })
+      end
+
+      it "returns map area data for valid position" do
+        result = koshien.get_map_area("5:7")
+        expect(result).to be_a(Hash)
+        expect(result["visible_map"]).to eq({"5_7" => 1, "6_7" => 0})
+      end
+
+      it "stores response in @last_map_area_response" do
+        result = koshien.get_map_area("5:7")
+        expect(koshien.instance_variable_get(:@last_map_area_response)).to eq(result)
+      end
+
+      it "adds exploration action to queue" do
+        expect(koshien).to receive(:add_action).with(
+          {action_type: "explore", target_position: {x: 5, y: 7}, area_size: 5}
+        )
+        koshien.get_map_area("5:7")
+      end
+
+      it "calls request_map_area with parsed coordinates" do
+        expect(koshien).to receive(:request_map_area).with(5, 7)
+        koshien.get_map_area("5:7")
+      end
+    end
+
+    context "with invalid position format" do
+      it "returns nil for non-string position" do
+        result = koshien.get_map_area(123)
+        expect(result).to be_nil
+      end
+
+      it "returns nil for string without colon" do
+        result = koshien.get_map_area("invalid")
+        expect(result).to be_nil
+      end
+    end
+  end
+
   describe "#position" do
     it "converts x and y coordinates to position string" do
       result = koshien.position(5, 7)
