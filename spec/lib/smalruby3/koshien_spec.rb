@@ -516,4 +516,26 @@ RSpec.describe Smalruby3::Koshien do
       expect(value).to eq(0)
     end
   end
+
+  describe "#position" do
+    it "converts x and y coordinates to position string" do
+      result = koshien.position(5, 7)
+      expect(result).to eq("5:7")
+    end
+
+    it "handles zero coordinates" do
+      result = koshien.position(0, 0)
+      expect(result).to eq("0:0")
+    end
+
+    it "handles negative coordinates" do
+      result = koshien.position(-3, -5)
+      expect(result).to eq("-3:-5")
+    end
+
+    it "handles mixed positive and negative coordinates" do
+      result = koshien.position(-2, 8)
+      expect(result).to eq("-2:8")
+    end
+  end
 end
