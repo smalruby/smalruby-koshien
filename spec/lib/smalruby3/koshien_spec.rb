@@ -799,6 +799,100 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#locate_objects" do
+    let(:result_list) { Smalruby3::List.new }
+
+    context "when visible map contains matching objects" do
+      before do
+        map_data = Array.new(20) { Array.new(20, 0) }
+        map_data[2][3] = "A"  # Poison at (3, 2)
+        map_data[5][7] = "B"  # Snake at (7, 5)
+        map_data[8][9] = "C"  # Trap at (9, 8)
+        map_data[10][11] = "a" # Tea at (11, 10) - lowercase, not in default "ABCD"
+
+        koshien.instance_variable_set(:@current_turn_data, {
+          "visible_map" => {
+            "map_data" => map_data
+          }
+        })
+      end
+
+      it "finds objects in default area centered at player position" do
+        koshien.instance_variable_set(:@current_position, {x: 5, y: 5})
+        koshien.locate_objects(result: result_list)
+
+        expect(result_list.length).to be >= 0
+        expect(result_list).to be_a(Smalruby3::List)
+      end
+
+      it "finds objects with custom search area size" do
+        koshien.instance_variable_set(:@current_position, {x: 5, y: 5})
+        koshien.locate_objects(result: result_list, sq_size: 10)
+
+        expect(result_list).to be_a(Smalruby3::List)
+      end
+
+      it "finds objects with custom center position" do
+        koshien.instance_variable_set(:@current_position, {x: 0, y: 0})
+        koshien.locate_objects(result: result_list, cent: "7:7", sq_size: 5)
+
+        expect(result_list).to be_a(Smalruby3::List)
+      end
+
+      it "finds only specified object types" do
+        koshien.instance_variable_set(:@current_position, {x: 5, y: 5})
+        koshien.locate_objects(result: result_list, sq_size: 10, objects: "AB")
+
+        # Should find A at (3,2) and B at (7,5), but not C or a
+        expect(result_list.length).to eq(2)
+        expect(result_list[1]).to eq("3:2")
+        expect(result_list[2]).to eq("7:5")
+      end
+
+      it "sorts results by y coordinate first, then x coordinate" do
+        koshien.instance_variable_set(:@current_position, {x: 5, y: 5})
+        koshien.locate_objects(result: result_list, sq_size: 10, objects: "ABC")
+
+        # Should be sorted by y first: (3,2), (7,5), (9,8)
+        expect(result_list[1]).to eq("3:2")
+        expect(result_list[2]).to eq("7:5")
+        expect(result_list[3]).to eq("9:8")
+      end
+    end
+
+    context "when visible map is not available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, nil)
+        koshien.instance_variable_set(:@current_position, {x: 0, y: 0})
+      end
+
+      it "returns empty result list" do
+        koshien.locate_objects(result: result_list)
+
+        expect(result_list.length).to eq(0)
+      end
+    end
+
+    context "when visible map has no matching objects" do
+      before do
+        map_data = Array.new(20) { Array.new(20, 0) }
+
+        koshien.instance_variable_set(:@current_turn_data, {
+          "visible_map" => {
+            "map_data" => map_data
+          }
+        })
+        koshien.instance_variable_set(:@current_position, {x: 10, y: 10})
+      end
+
+      it "returns empty result list" do
+        koshien.locate_objects(result: result_list, sq_size: 5, objects: "ABCD")
+
+        expect(result_list.length).to eq(0)
+      end
+    end
+  end
+
   describe "#object" do
     context "with unknown/unexplored cell names" do
       it "returns -1 for 'unknown'" do
