@@ -599,4 +599,31 @@ RSpec.describe Smalruby3::Koshien do
       expect(result).to eq(14)
     end
   end
+
+  describe "#player" do
+    it "returns player position as string" do
+      result = koshien.player
+      expect(result).to be_a(String)
+      expect(result).to match(/\d+:\d+/)
+    end
+
+    it "returns player coordinates in x:y format" do
+      result = koshien.player
+      expect(result).to eq("0:0")
+    end
+  end
+
+  describe "#player_x" do
+    it "returns x coordinate of player" do
+      result = koshien.player_x
+      expect(result).to eq(0)
+    end
+  end
+
+  describe "#player_y" do
+    it "returns y coordinate of player" do
+      result = koshien.player_y
+      expect(result).to eq(0)
+    end
+  end
 end
