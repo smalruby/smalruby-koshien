@@ -626,4 +626,116 @@ RSpec.describe Smalruby3::Koshien do
       expect(result).to eq(0)
     end
   end
+
+  describe "#object" do
+    context "with unknown/unexplored cell names" do
+      it "returns -1 for 'unknown'" do
+        expect(koshien.object("unknown")).to eq(-1)
+      end
+
+      it "returns -1 for '未探索のマス'" do
+        expect(koshien.object("未探索のマス")).to eq(-1)
+      end
+
+      it "returns -1 for 'みたんさくのマス'" do
+        expect(koshien.object("みたんさくのマス")).to eq(-1)
+      end
+
+      it "returns -1 for unrecognized names" do
+        expect(koshien.object("invalid_object")).to eq(-1)
+      end
+    end
+
+    context "with basic cell types (numeric values)" do
+      it "returns 0 for 'space'" do
+        expect(koshien.object("space")).to eq(0)
+      end
+
+      it "returns 0 for '空間'" do
+        expect(koshien.object("空間")).to eq(0)
+      end
+
+      it "returns 1 for 'wall'" do
+        expect(koshien.object("wall")).to eq(1)
+      end
+
+      it "returns 2 for 'storehouse'" do
+        expect(koshien.object("storehouse")).to eq(2)
+      end
+
+      it "returns 3 for 'goal'" do
+        expect(koshien.object("goal")).to eq(3)
+      end
+
+      it "returns 4 for 'water'" do
+        expect(koshien.object("water")).to eq(4)
+      end
+
+      it "returns 5 for 'breakable wall'" do
+        expect(koshien.object("breakable wall")).to eq(5)
+      end
+    end
+
+    context "with item types (lowercase letters)" do
+      it "returns 'a' for 'tea'" do
+        expect(koshien.object("tea")).to eq("a")
+      end
+
+      it "returns 'b' for 'sweets'" do
+        expect(koshien.object("sweets")).to eq("b")
+      end
+
+      it "returns 'c' for 'COIN'" do
+        expect(koshien.object("COIN")).to eq("c")
+      end
+
+      it "returns 'd' for 'dolphin'" do
+        expect(koshien.object("dolphin")).to eq("d")
+      end
+
+      it "returns 'e' for 'sword'" do
+        expect(koshien.object("sword")).to eq("e")
+      end
+    end
+
+    context "with trap types (uppercase letters)" do
+      it "returns 'A' for 'poison'" do
+        expect(koshien.object("poison")).to eq("A")
+      end
+
+      it "returns 'B' for 'snake'" do
+        expect(koshien.object("snake")).to eq("B")
+      end
+
+      it "returns 'C' for 'trap'" do
+        expect(koshien.object("trap")).to eq("C")
+      end
+
+      it "returns 'D' for 'bomb'" do
+        expect(koshien.object("bomb")).to eq("D")
+      end
+    end
+
+    context "with Japanese names" do
+      it "returns 1 for '壁'" do
+        expect(koshien.object("壁")).to eq(1)
+      end
+
+      it "returns 3 for 'ゴール'" do
+        expect(koshien.object("ゴール")).to eq(3)
+      end
+
+      it "returns 'a' for 'お茶'" do
+        expect(koshien.object("お茶")).to eq("a")
+      end
+
+      it "returns 'e' for '草薙剣'" do
+        expect(koshien.object("草薙剣")).to eq("e")
+      end
+
+      it "returns 'A' for '毒キノコ'" do
+        expect(koshien.object("毒キノコ")).to eq("A")
+      end
+    end
+  end
 end
