@@ -572,4 +572,31 @@ RSpec.describe Smalruby3::Koshien do
       expect(result).to eq(-8)
     end
   end
+
+  describe "#goal" do
+    it "returns goal position as string" do
+      result = koshien.goal
+      expect(result).to be_a(String)
+      expect(result).to match(/\d+:\d+/)
+    end
+
+    it "returns goal coordinates in x:y format" do
+      result = koshien.goal
+      expect(result).to eq("14:14")
+    end
+  end
+
+  describe "#goal_x" do
+    it "returns x coordinate of goal" do
+      result = koshien.goal_x
+      expect(result).to eq(14)
+    end
+  end
+
+  describe "#goal_y" do
+    it "returns y coordinate of goal" do
+      result = koshien.goal_y
+      expect(result).to eq(14)
+    end
+  end
 end
