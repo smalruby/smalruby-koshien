@@ -799,6 +799,67 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#add_action" do
+    before do
+      koshien.instance_variable_set(:@actions, [])
+    end
+
+    it "adds action to actions array" do
+      action = {type: "move", position: "5:5"}
+      koshien.send(:add_action, action)
+
+      actions = koshien.send(:get_actions)
+      expect(actions.length).to eq(1)
+      expect(actions[0]).to eq(action)
+    end
+
+    it "appends multiple actions in order" do
+      action1 = {type: "move", position: "1:1"}
+      action2 = {type: "get_map_area", position: "2:2"}
+
+      koshien.send(:add_action, action1)
+      koshien.send(:add_action, action2)
+
+      actions = koshien.send(:get_actions)
+      expect(actions.length).to eq(2)
+      expect(actions[0]).to eq(action1)
+      expect(actions[1]).to eq(action2)
+    end
+  end
+
+  describe "#clear_actions" do
+    before do
+      koshien.instance_variable_set(:@actions, [{type: "move"}, {type: "attack"}])
+    end
+
+    it "clears all actions from array" do
+      koshien.send(:clear_actions)
+
+      actions = koshien.send(:get_actions)
+      expect(actions.length).to eq(0)
+    end
+  end
+
+  describe "#get_actions" do
+    it "returns copy of actions array" do
+      original_actions = [{type: "move", position: "3:3"}]
+      koshien.instance_variable_set(:@actions, original_actions)
+
+      actions = koshien.send(:get_actions)
+
+      expect(actions).to eq(original_actions)
+      expect(actions.object_id).not_to eq(original_actions.object_id)
+    end
+
+    it "returns empty array when no actions" do
+      koshien.instance_variable_set(:@actions, [])
+
+      actions = koshien.send(:get_actions)
+
+      expect(actions).to eq([])
+    end
+  end
+
   describe "#locate_objects" do
     let(:result_list) { Smalruby3::List.new }
 
