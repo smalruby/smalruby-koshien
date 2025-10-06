@@ -782,6 +782,23 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#set_message" do
+    it "sends debug message with string" do
+      expect(koshien).to receive(:send_debug_message).with("Hello World")
+      koshien.set_message("Hello World")
+    end
+
+    it "converts non-string values to string" do
+      expect(koshien).to receive(:send_debug_message).with("42")
+      koshien.set_message(42)
+    end
+
+    it "converts nil to string" do
+      expect(koshien).to receive(:send_debug_message).with("")
+      koshien.set_message(nil)
+    end
+  end
+
   describe "#object" do
     context "with unknown/unexplored cell names" do
       it "returns -1 for 'unknown'" do
