@@ -112,6 +112,12 @@ RSpec.describe Smalruby3::List do
       expect(list.index("banana")).to eq(2)
       expect(list.index("cherry")).to eq(3)
     end
+
+    it "returns nil when element not found" do
+      list = described_class.new(%w[apple banana cherry])
+
+      expect(list.index("grape")).to be_nil
+    end
   end
 
   describe "#length" do
