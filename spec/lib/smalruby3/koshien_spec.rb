@@ -509,6 +509,46 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#map" do
+    context "when visible_map data is available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, {
+          "visible_map" => {
+            "5_7" => 1,
+            "10_12" => 0,
+            "3_4" => 4
+          }
+        })
+      end
+
+      it "returns map value for valid position" do
+        result = koshien.map("5:7")
+        expect(result).to eq(1)
+      end
+
+      it "returns 0 for empty cell" do
+        result = koshien.map("10:12")
+        expect(result).to eq(0)
+      end
+
+      it "returns -1 for unexplored cell" do
+        result = koshien.map("99:99")
+        expect(result).to eq(-1)
+      end
+    end
+
+    context "when visible_map data is not available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, nil)
+      end
+
+      it "returns -1" do
+        result = koshien.map("5:7")
+        expect(result).to eq(-1)
+      end
+    end
+  end
+
   describe "#map_from" do
     it "returns map data from map_all string" do
       map_string = koshien.map_all
