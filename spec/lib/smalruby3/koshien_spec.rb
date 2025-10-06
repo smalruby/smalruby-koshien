@@ -627,6 +627,78 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#other_player" do
+    context "when other player data is available" do
+      before do
+        koshien.instance_variable_set(:@last_map_area_response, {other_player: [5, 7]})
+      end
+
+      it "returns other player position as string" do
+        result = koshien.other_player
+        expect(result).to eq("5:7")
+      end
+    end
+
+    context "when other player data is not available" do
+      before do
+        koshien.instance_variable_set(:@last_map_area_response, nil)
+      end
+
+      it "returns nil" do
+        result = koshien.other_player
+        expect(result).to be_nil
+      end
+    end
+  end
+
+  describe "#other_player_x" do
+    context "when other player data is available" do
+      before do
+        koshien.instance_variable_set(:@last_map_area_response, {other_player: [8, 3]})
+      end
+
+      it "returns x coordinate of other player" do
+        result = koshien.other_player_x
+        expect(result).to eq(8)
+      end
+    end
+
+    context "when other player data is not available" do
+      before do
+        koshien.instance_variable_set(:@last_map_area_response, nil)
+      end
+
+      it "returns nil" do
+        result = koshien.other_player_x
+        expect(result).to be_nil
+      end
+    end
+  end
+
+  describe "#other_player_y" do
+    context "when other player data is available" do
+      before do
+        koshien.instance_variable_set(:@last_map_area_response, {other_player: [8, 12]})
+      end
+
+      it "returns y coordinate of other player" do
+        result = koshien.other_player_y
+        expect(result).to eq(12)
+      end
+    end
+
+    context "when other player data is not available" do
+      before do
+        koshien.instance_variable_set(:@last_map_area_response, nil)
+      end
+
+      it "returns nil" do
+        result = koshien.other_player_y
+        expect(result).to be_nil
+      end
+    end
+  end
+
   describe "#object" do
     context "with unknown/unexplored cell names" do
       it "returns -1 for 'unknown'" do
