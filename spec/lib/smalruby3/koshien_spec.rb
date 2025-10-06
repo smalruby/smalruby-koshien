@@ -784,6 +784,81 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#turn_over" do
+    context "normal turn completion" do
+      before do
+        # Initialize instance variables
+        koshien.instance_variable_set(:@message_queue, [])
+        koshien.instance_variable_set(:@actions, [])
+
+        # Mock read_message to return turn_end_confirm then turn_start
+        allow(koshien).to receive(:read_message).and_return(
+          {"type" => "turn_end_confirm", "data" => {}},
+          {"type" => "turn_start", "data" => {"turn_number" => 2}}
+        )
+        allow(koshien).to receive(:send_message)
+        allow(koshien).to receive(:handle_turn_end_confirm)
+        allow(koshien).to receive(:update_turn_data)
+      end
+
+      it "sends turn_over message" do
+        expect(koshien).to receive(:send_message).with(
+          hash_including(
+            type: "turn_over",
+            data: hash_including(:actions)
+          )
+        )
+        koshien.turn_over
+      end
+
+      it "clears actions after sending" do
+        koshien.instance_variable_set(:@actions, [{action_type: "move", target_x: 5, target_y: 7}])
+        expect(koshien.instance_variable_get(:@actions).length).to eq(1)
+
+        koshien.turn_over
+
+        expect(koshien.instance_variable_get(:@actions).length).to eq(0)
+      end
+
+      it "waits for turn_end_confirm" do
+        expect(koshien).to receive(:handle_turn_end_confirm).with({})
+        koshien.turn_over
+      end
+
+      it "updates turn data when receiving turn_start" do
+        expect(koshien).to receive(:update_turn_data).with({"turn_number" => 2})
+        koshien.turn_over
+      end
+
+      it "returns true on successful turn completion" do
+        result = koshien.turn_over
+        expect(result).to be true
+      end
+    end
+
+    context "when no messages received" do
+      before do
+        # Initialize instance variables
+        koshien.instance_variable_set(:@message_queue, [])
+        koshien.instance_variable_set(:@actions, [])
+
+        # Mock read_message to return turn_end_confirm then nil messages
+        allow(koshien).to receive(:read_message).and_return(
+          {"type" => "turn_end_confirm", "data" => {}},
+          nil, nil, nil
+        )
+        allow(koshien).to receive(:send_message)
+        allow(koshien).to receive(:handle_turn_end_confirm)
+        allow(koshien).to receive(:sleep)
+      end
+
+      it "breaks after 3 nil messages" do
+        expect(koshien).to receive(:read_message).exactly(4).times
+        koshien.turn_over
+      end
+    end
+  end
+
   describe "#position" do
     it "converts x and y coordinates to position string" do
       result = koshien.position(5, 7)
