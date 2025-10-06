@@ -734,6 +734,56 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#set_bomb" do
+    context "with explicit position" do
+      it "adds set_bomb action to queue" do
+        expect(koshien).to receive(:add_action).with(
+          {action_type: "set_bomb", target_x: 5, target_y: 7}
+        )
+        koshien.set_bomb("5:7")
+      end
+
+      it "parses coordinates correctly" do
+        expect(koshien).to receive(:add_action).with(
+          {action_type: "set_bomb", target_x: 0, target_y: 0}
+        )
+        koshien.set_bomb("0:0")
+      end
+    end
+
+    context "with nil position (uses player position)" do
+      before do
+        allow(koshien).to receive(:player).and_return("3:4")
+      end
+
+      it "uses player position when position is nil" do
+        expect(koshien).to receive(:add_action).with(
+          {action_type: "set_bomb", target_x: 3, target_y: 4}
+        )
+        koshien.set_bomb(nil)
+      end
+
+      it "uses player position when no argument provided" do
+        expect(koshien).to receive(:add_action).with(
+          {action_type: "set_bomb", target_x: 3, target_y: 4}
+        )
+        koshien.set_bomb
+      end
+    end
+
+    context "with invalid position format" do
+      it "does not add action for non-string position" do
+        expect(koshien).not_to receive(:add_action)
+        koshien.set_bomb(123)
+      end
+
+      it "does not add action for string without colon" do
+        expect(koshien).not_to receive(:add_action)
+        koshien.set_bomb("invalid")
+      end
+    end
+  end
+
   describe "#position" do
     it "converts x and y coordinates to position string" do
       result = koshien.position(5, 7)
