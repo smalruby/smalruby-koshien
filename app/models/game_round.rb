@@ -1,9 +1,9 @@
 class GameRound < ApplicationRecord
   belongs_to :game
 
+  has_many :game_turns, dependent: :destroy
   has_many :players, dependent: :destroy
   has_many :enemies, dependent: :destroy
-  has_many :game_turns, dependent: :destroy
 
   serialize :item_locations, coder: JSON
 
