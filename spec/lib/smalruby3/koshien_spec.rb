@@ -538,4 +538,21 @@ RSpec.describe Smalruby3::Koshien do
       expect(result).to eq("-2:8")
     end
   end
+
+  describe "#position_of_x" do
+    it "extracts x coordinate from position string" do
+      result = koshien.position_of_x("5:7")
+      expect(result).to eq(5)
+    end
+
+    it "handles zero x coordinate" do
+      result = koshien.position_of_x("0:10")
+      expect(result).to eq(0)
+    end
+
+    it "handles negative x coordinate" do
+      result = koshien.position_of_x("-3:7")
+      expect(result).to eq(-3)
+    end
+  end
 end
