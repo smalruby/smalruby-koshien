@@ -492,20 +492,58 @@ RSpec.describe Smalruby3::Koshien do
   end
 
   describe "#map_all" do
-    it "returns map string representation" do
-      result = koshien.map_all
-      expect(result).to be_a(String)
+    context "when visible_map data is available" do
+      before do
+        koshien.instance_variable_set(:@current_turn_data, {
+          "visible_map" => {
+            "0_0" => 1,
+            "1_0" => 0,
+            "2_0" => 4,
+            "5_7" => 3
+          }
+        })
+      end
 
-      # Should be 15 rows separated by commas
-      rows = result.split(",")
-      expect(rows.length).to eq(15)
-      expect(rows.first.length).to eq(15)
+      it "returns map string representation" do
+        result = koshien.map_all
+        expect(result).to be_a(String)
+
+        # Should be 15 rows separated by commas
+        rows = result.split(",")
+        expect(rows.length).to eq(15)
+        expect(rows.first.length).to eq(15)
+      end
+
+      it "builds map with visible data and unexplored areas" do
+        result = koshien.map_all
+        rows = result.split(",")
+
+        # First row should have "104" at positions 0-2, rest should be "-"
+        expect(rows[0][0]).to eq("1")
+        expect(rows[0][1]).to eq("0")
+        expect(rows[0][2]).to eq("4")
+        expect(rows[0][3]).to eq("-")
+
+        # Row 7, column 5 should be "3"
+        expect(rows[7][5]).to eq("3")
+
+        # Unexplored cells should be "-"
+        expect(rows[14][14]).to eq("-")
+      end
     end
 
-    it "returns empty map when no turn data" do
-      koshien.instance_variable_set(:@current_turn_data, nil)
-      result = koshien.map_all
-      expect(result).to be_a(String)
+    context "when no visible_map data is available" do
+      it "returns empty map when no turn data" do
+        koshien.instance_variable_set(:@current_turn_data, nil)
+        result = koshien.map_all
+        expect(result).to be_a(String)
+      end
+
+      it "returns empty map when visible_map is missing" do
+        koshien.instance_variable_set(:@current_turn_data, {})
+        result = koshien.map_all
+        expect(result).to be_a(String)
+      end
     end
   end
 
