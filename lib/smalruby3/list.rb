@@ -80,7 +80,9 @@ module Smalruby3
 
     # - 0以上は1を足す
     # - -1以下はそのまま
+    # - nilはnilのまま
     def to_list_index(array_index:)
+      return nil if array_index.nil?
       return array_index + 1 if array_index >= 0
 
       array_index
