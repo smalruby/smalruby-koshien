@@ -643,6 +643,47 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#move_to" do
+    context "with valid position string" do
+      it "adds move action to queue" do
+        expect(koshien).to receive(:add_action).with(
+          {action_type: "move", target_x: 5, target_y: 7}
+        )
+        koshien.move_to("5:7")
+      end
+
+      it "tracks movement action updating @current_position" do
+        koshien.move_to("10:12")
+        expect(koshien.instance_variable_get(:@current_position)).to eq({x: 10, y: 12})
+      end
+
+      it "parses coordinates correctly" do
+        expect(koshien).to receive(:add_action).with(
+          {action_type: "move", target_x: 0, target_y: 0}
+        )
+        koshien.move_to("0:0")
+      end
+    end
+
+    context "with invalid position format" do
+      it "does not add action for non-string position" do
+        expect(koshien).not_to receive(:add_action)
+        koshien.move_to(123)
+      end
+
+      it "does not add action for string without colon" do
+        expect(koshien).not_to receive(:add_action)
+        koshien.move_to("invalid")
+      end
+
+      it "does not track movement for invalid position" do
+        initial_position = koshien.instance_variable_get(:@current_position)
+        koshien.move_to("invalid")
+        expect(koshien.instance_variable_get(:@current_position)).to eq(initial_position)
+      end
+    end
+  end
+
   describe "#position" do
     it "converts x and y coordinates to position string" do
       result = koshien.position(5, 7)
