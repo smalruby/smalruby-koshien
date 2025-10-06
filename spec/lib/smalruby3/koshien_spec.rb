@@ -860,6 +860,144 @@ RSpec.describe Smalruby3::Koshien do
     end
   end
 
+  describe "#current_player_position (private)" do
+    context "when @current_position is set" do
+      it "returns @current_position" do
+        position = {x: 5, y: 7}
+        koshien.instance_variable_set(:@current_position, position)
+
+        result = koshien.send(:current_player_position)
+
+        expect(result).to eq(position)
+      end
+    end
+
+    context "when @current_position is nil but turn data has position" do
+      it "returns position from turn data" do
+        koshien.instance_variable_set(:@current_position, nil)
+        koshien.instance_variable_set(:@current_turn_data, {
+          "current_player" => {
+            "position" => {x: 3, y: 4}
+          }
+        })
+
+        result = koshien.send(:current_player_position)
+
+        expect(result).to eq({x: 3, y: 4})
+      end
+    end
+
+    context "when turn data has x and y coordinates" do
+      it "returns position built from x and y" do
+        koshien.instance_variable_set(:@current_position, nil)
+        koshien.instance_variable_set(:@current_turn_data, {
+          "current_player" => {
+            "x" => 8,
+            "y" => 9
+          }
+        })
+
+        result = koshien.send(:current_player_position)
+
+        expect(result).to eq({x: 8, y: 9})
+      end
+    end
+
+    context "when no position data is available" do
+      it "returns nil" do
+        koshien.instance_variable_set(:@current_position, nil)
+        koshien.instance_variable_set(:@current_turn_data, nil)
+
+        result = koshien.send(:current_player_position)
+
+        expect(result).to be_nil
+      end
+    end
+  end
+
+  describe "#other_players (private)" do
+    it "returns other players from turn data" do
+      koshien.instance_variable_set(:@current_turn_data, {
+        "other_players" => [{x: 5, y: 6}, {x: 7, y: 8}]
+      })
+
+      result = koshien.send(:other_players)
+
+      expect(result).to eq([{x: 5, y: 6}, {x: 7, y: 8}])
+    end
+
+    it "returns empty array when no turn data" do
+      koshien.instance_variable_set(:@current_turn_data, nil)
+
+      result = koshien.send(:other_players)
+
+      expect(result).to eq([])
+    end
+  end
+
+  describe "#enemies (private)" do
+    it "returns enemies from turn data" do
+      koshien.instance_variable_set(:@current_turn_data, {
+        "enemies" => [{"x" => 10, "y" => 11}]
+      })
+
+      result = koshien.send(:enemies)
+
+      expect(result).to eq([{"x" => 10, "y" => 11}])
+    end
+
+    it "returns empty array when no turn data" do
+      koshien.instance_variable_set(:@current_turn_data, nil)
+
+      result = koshien.send(:enemies)
+
+      expect(result).to eq([])
+    end
+  end
+
+  describe "#visible_map (private)" do
+    it "returns visible map from turn data" do
+      map_data = {"map_data" => [[0, 1], [2, 3]]}
+      koshien.instance_variable_set(:@current_turn_data, {
+        "visible_map" => map_data
+      })
+
+      result = koshien.send(:visible_map)
+
+      expect(result).to eq(map_data)
+    end
+
+    it "returns empty hash when no turn data" do
+      koshien.instance_variable_set(:@current_turn_data, nil)
+
+      result = koshien.send(:visible_map)
+
+      expect(result).to eq({})
+    end
+  end
+
+  describe "#goal_position (private)" do
+    it "returns goal position from game state" do
+      koshien.instance_variable_set(:@game_state, {
+        "game_map" => {
+          "goal_position" => {x: 12, y: 13}
+        }
+      })
+
+      result = koshien.send(:goal_position)
+
+      expect(result).to eq({x: 12, y: 13})
+    end
+
+    it "returns default position when no game state" do
+      koshien.instance_variable_set(:@game_state, nil)
+
+      result = koshien.send(:goal_position)
+
+      expect(result).to eq({x: 14, y: 14})
+    end
+  end
+
   describe "#locate_objects" do
     let(:result_list) { Smalruby3::List.new }
 
