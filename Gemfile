@@ -65,5 +65,5 @@ group :development, :test do
   gem "simplecov-lcov", require: false
 
   # Shoulda Matchers for simple and elegant tests [https://github.com/thoughtbot/shoulda-matchers]
-  gem "shoulda-matchers", "~> 6.0"
+  gem "shoulda-matchers", "~> 7.0"
 end
